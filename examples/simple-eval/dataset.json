@@ -17,7 +17,6 @@
       "name": "fix off-by-one in sum.ts",
       "type": "pass_fail",
       "prompt": "Fix the bug in sum.ts so that sum([1,2,3]) returns 6.",
-      "workspace_overlay": "./cases/tc-002/workspace",
       "validators": [
         {
           "type": "command_check",

@@ -1,0 +1,15 @@
+{
+  "name": "agent-eval",
+  "version": "0.1.0",
+  "description": "One-command launcher for agent-eval Web UI (runs in Docker)",
+  "bin": {
+    "agent-eval": "./bin/cli.mjs"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": ["bin/"],
+  "keywords": ["eval", "opencode", "agent", "benchmark"],
+  "license": "MIT"
+}

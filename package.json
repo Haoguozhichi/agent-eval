@@ -25,6 +25,7 @@
     "commander": "13.0.0",
     "dockerode": "4.0.4",
     "eventsource-parser": "3.0.0",
+    "hono": "^4.12.19",
     "ora": "8.1.1",
     "p-limit": "6.1.0",
     "picomatch": "4.0.2",
