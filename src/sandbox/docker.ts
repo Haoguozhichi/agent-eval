@@ -209,6 +209,13 @@ class DockerSandboxHandle implements SandboxHandle {
     }
   }
 
+  async copyWorkdirTo(dest: string): Promise<void> {
+    const { mkdir } = await import("node:fs/promises");
+    await mkdir(dest, { recursive: true });
+    const stream = await this.container.getArchive({ path: "/workspace" });
+    await extractTarToDir(stream, dest);
+  }
+
   async destroy(): Promise<void> {
     if (this.destroyed) return;
     this.destroyed = true;
@@ -338,6 +345,59 @@ function posixBasename(p: string): string {
 function posixDirname(p: string): string {
   const i = p.lastIndexOf("/");
   return i === -1 ? "." : p.slice(0, i) || "/";
+}
+
+function extractTarToDir(stream: NodeJS.ReadableStream, dest: string): Promise<void> {
+  return new Promise((resolveExtract, rejectExtract) => {
+    const ex = extract();
+    const pending: Promise<void>[] = [];
+    ex.on("entry", (header, entryStream, next) => {
+      // Strip leading "workspace/" prefix from paths
+      let name = header.name;
+      const prefix = "workspace/";
+      if (name.startsWith(prefix)) name = name.slice(prefix.length);
+      if (!name || name === ".") {
+        entryStream.on("end", next);
+        entryStream.resume();
+        return;
+      }
+      const target = `${dest}/${name}`;
+      if (header.type === "directory") {
+        const p = import("node:fs/promises").then(({ mkdir }) =>
+          mkdir(target, { recursive: true }),
+        );
+        pending.push(p.then(() => {}));
+        entryStream.on("end", next);
+        entryStream.resume();
+      } else if (header.type === "file") {
+        const chunks: Buffer[] = [];
+        entryStream.on("data", (c: Buffer) => chunks.push(c));
+        entryStream.on("end", () => {
+          const p = import("node:fs/promises").then(async ({ mkdir: mk, writeFile: wf }) => {
+            const dir = target.slice(0, target.lastIndexOf("/"));
+            if (dir) await mk(dir, { recursive: true });
+            await wf(target, Buffer.concat(chunks));
+          });
+          pending.push(p);
+          next();
+        });
+        entryStream.resume();
+      } else {
+        entryStream.on("end", next);
+        entryStream.resume();
+      }
+    });
+    ex.on("finish", async () => {
+      try {
+        await Promise.all(pending);
+        resolveExtract();
+      } catch (err) {
+        rejectExtract(err);
+      }
+    });
+    ex.on("error", rejectExtract);
+    stream.pipe(ex);
+  });
 }
 
 export { sleep };

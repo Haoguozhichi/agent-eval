@@ -137,6 +137,11 @@ class LocalSandboxHandle implements SandboxHandle {
     }
   }
 
+  async copyWorkdirTo(dest: string): Promise<void> {
+    await mkdir(dest, { recursive: true });
+    await cp(this.workdir, dest, { recursive: true });
+  }
+
   async destroy(): Promise<void> {
     if (this.destroyed) return;
     this.destroyed = true;

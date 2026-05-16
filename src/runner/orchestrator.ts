@@ -51,7 +51,7 @@ export async function runEvaluation(
   const tasks = parsed.dataset.cases.map((c, idx) =>
     limit(async () => {
       log.info(`case start ${idx + 1}/${parsed.dataset.cases.length}`, { id: c.id });
-      const result = await executeCase({ loaded, provider }, c, controller.signal);
+      const result = await executeCase({ loaded, provider, outputDir: loaded.outputDir }, c, controller.signal);
       log.info(`case ${result.status}`, {
         id: c.id,
         duration_ms: result.duration_ms,

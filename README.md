@@ -419,6 +419,64 @@ Markdown 格式的可读报告，包含：
 - **Cases 总览表** — 每个用例一行：ID、名称、状态、得分、耗时、token、工具调用数
 - **每个用例详情** — 状态、得分、耗时、token 明细、工具调用分桶、验证器结果表、agent 输出摘要
 
+### cases/ 目录（工作区快照 + 完整日志）
+
+每个用例执行完成后，agent-eval 会自动保存：
+
+```
+results/cases/
+├── tc-001/
+│   ├── workspace/          ← agent 执行后的完整工作区快照
+│   │   ├── hello.ts        ← agent 生成的文件
+│   │   └── opencode.json   ← opencode 配置
+│   └── messages.json       ← 完整对话日志（含 system prompt）
+├── tc-002/
+│   ├── workspace/
+│   │   ├── sum.js          ← agent 修改后的文件
+│   │   └── opencode.json
+│   └── messages.json
+└── ...
+```
+
+**workspace/** — agent 执行结束时工作目录的完整快照。可以直接查看 agent 生成或修改了哪些文件。即使用例超时或出错，也会尽力保存。
+
+**messages.json** — opencode 返回的完整消息列表，包含：
+- system 消息（含完整 system prompt）
+- user 消息（评测 prompt）
+- assistant 消息（含 reasoning、text、tool parts）
+- 每个 tool part 包含 `tool` 名称、`state.input`、`state.output`、`state.status`
+
+示例 messages.json 结构：
+
+```jsonc
+[
+  {
+    "info": { "role": "user", "id": "msg_..." },
+    "parts": [
+      { "type": "text", "text": "Create hello.ts..." }
+    ]
+  },
+  {
+    "info": { "role": "assistant", "id": "msg_..." },
+    "parts": [
+      { "type": "step-start" },
+      { "type": "reasoning", "reasoning": "..." },
+      { "type": "text", "text": "I'll create the file..." },
+      {
+        "type": "tool",
+        "tool": "write",
+        "state": {
+          "status": "completed",
+          "input": { "path": "hello.ts", "content": "..." },
+          "output": "File written successfully"
+        }
+      },
+      { "type": "step-finish" }
+    ]
+  }
+]
+```
+
 示例片段：
 
 ```markdown

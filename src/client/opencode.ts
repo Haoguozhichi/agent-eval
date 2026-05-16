@@ -136,7 +136,7 @@ export class OpenCodeClient {
     }
   }
 
-  private async getSessionMessages(sessionId: string, signal?: AbortSignal): Promise<unknown[] | null> {
+  async getFullMessages(sessionId: string, signal?: AbortSignal): Promise<unknown[] | null> {
     try {
       const res = await this.fetchImpl(`${this.baseUrl}/session/${sessionId}/message`, { signal });
       if (!res.ok) return null;
@@ -146,6 +146,10 @@ export class OpenCodeClient {
     } catch {
       return null;
     }
+  }
+
+  private async getSessionMessages(sessionId: string, signal?: AbortSignal): Promise<unknown[] | null> {
+    return this.getFullMessages(sessionId, signal);
   }
 
   private async consumeEvents(

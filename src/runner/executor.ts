@@ -5,6 +5,8 @@ import type { LoadedConfig } from "../config/loader.ts";
 import type { SandboxHandle, SandboxProvider } from "../sandbox/types.ts";
 import { runValidators } from "../validator/engine.ts";
 import { createLogger } from "../utils/logger.ts";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { Timer, nowIso, formatDurationHuman } from "../utils/timer.ts";
 import { withRetry } from "../utils/retry.ts";
 import {
@@ -20,6 +22,7 @@ const log = createLogger("executor");
 export interface ExecutorDeps {
   loaded: LoadedConfig;
   provider: SandboxProvider;
+  outputDir: string;
 }
 
 export async function executeCase(
@@ -27,7 +30,7 @@ export async function executeCase(
   evalCase: EvalCase,
   signal: AbortSignal,
 ): Promise<CaseResult> {
-  const { loaded, provider } = deps;
+  const { loaded, provider, outputDir } = deps;
   const retries = loaded.config.execution.retries;
   let attempt = 0;
   let lastResult: CaseResult | null = null;
@@ -35,7 +38,7 @@ export async function executeCase(
   await withRetry(
     async () => {
       attempt += 1;
-      lastResult = await runOnce(loaded, provider, evalCase, attempt, signal);
+      lastResult = await runOnce(loaded, provider, evalCase, attempt, outputDir, signal);
       if (lastResult.status === "errored") throw new Error(lastResult.error ?? "case errored");
     },
     {
@@ -53,6 +56,7 @@ async function runOnce(
   provider: SandboxProvider,
   evalCase: EvalCase,
   attempt: number,
+  outputDir: string,
   parentSignal: AbortSignal,
 ): Promise<CaseResult> {
   const timer = new Timer();
@@ -147,6 +151,10 @@ async function runOnce(
     });
     validatorResults.push(...validation.results);
 
+    // Save workspace snapshot and full messages log
+    const caseDir = join(outputDir, "cases", evalCase.id);
+    await saveArtifacts(sandbox, client, sessionId, caseDir, caseController.signal);
+
     status = decideStatus(evalCase, validation.results);
     error = null;
     return finalize({
@@ -183,6 +191,14 @@ async function runOnce(
   } finally {
     clearTimeout(timeoutTimer);
     parentSignal.removeEventListener("abort", onParentAbort);
+    // Save artifacts even on timeout/error (best effort)
+    if (sandbox && client && sessionId) {
+      const caseDir = join(outputDir, "cases", evalCase.id);
+      await saveArtifacts(sandbox, client, sessionId, caseDir, parentSignal).catch(() => {});
+    } else if (sandbox) {
+      const caseDir = join(outputDir, "cases", evalCase.id);
+      try { await sandbox.copyWorkdirTo(join(caseDir, "workspace")); } catch {}
+    }
     if (client && sessionId) {
       await client.deleteSession(sessionId).catch(() => undefined);
     }
@@ -250,6 +266,35 @@ function decideStatus(evalCase: EvalCase, results: ValidatorResult[]): CaseStatu
   }
   if (results.length === 0) return "passed";
   return results.every((r) => r.passed) ? "passed" : "failed";
+}
+
+async function saveArtifacts(
+  sandbox: SandboxHandle,
+  client: OpenCodeClient,
+  sessionId: string,
+  caseDir: string,
+  signal: AbortSignal,
+): Promise<void> {
+  const workspaceDir = join(caseDir, "workspace");
+  try {
+    await sandbox.copyWorkdirTo(workspaceDir);
+  } catch (err) {
+    log.warn("failed to save workspace", { err: (err as Error).message });
+  }
+
+  try {
+    const messages = await client.getFullMessages(sessionId, signal);
+    if (messages) {
+      await mkdir(caseDir, { recursive: true });
+      await writeFile(
+        join(caseDir, "messages.json"),
+        JSON.stringify(messages, null, 2),
+        "utf-8",
+      );
+    }
+  } catch (err) {
+    log.warn("failed to save messages", { err: (err as Error).message });
+  }
 }
 
 function summarize(text: string): string {

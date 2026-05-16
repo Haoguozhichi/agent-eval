@@ -38,6 +38,7 @@ export interface SandboxHandle {
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
   fileExists(path: string): Promise<boolean>;
+  copyWorkdirTo(dest: string): Promise<void>;
   followLogs?(): Readable;
   destroy(): Promise<void>;
 }
