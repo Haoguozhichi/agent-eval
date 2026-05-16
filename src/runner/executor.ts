@@ -5,7 +5,7 @@ import type { LoadedConfig } from "../config/loader.ts";
 import type { SandboxHandle, SandboxProvider } from "../sandbox/types.ts";
 import { runValidators } from "../validator/engine.ts";
 import { createLogger } from "../utils/logger.ts";
-import { Timer, nowIso } from "../utils/timer.ts";
+import { Timer, nowIso, formatDurationHuman } from "../utils/timer.ts";
 import { withRetry } from "../utils/retry.ts";
 import {
   emptyMetrics,
@@ -215,6 +215,7 @@ function finalize(args: FinalizeArgs): CaseResult {
     status: args.status,
     score: args.score,
     duration_ms: args.durationMs,
+    duration: formatDurationHuman(args.durationMs),
     started_at: args.startedAt,
     finished_at: nowIso(),
     validators: args.validatorResults,
@@ -232,6 +233,7 @@ function errorResult(evalCase: EvalCase, message: string, attempt: number): Case
     type: evalCase.type,
     status: "errored",
     duration_ms: 0,
+    duration: "0ms",
     started_at: nowIso(),
     finished_at: nowIso(),
     validators: [],

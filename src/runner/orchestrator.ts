@@ -3,7 +3,7 @@ import type { LoadedConfig } from "../config/loader.ts";
 import type { ParsedDataset } from "../dataset/parser.ts";
 import { createSandboxProvider } from "../sandbox/manager.ts";
 import { createLogger } from "../utils/logger.ts";
-import { Timer, nowIso } from "../utils/timer.ts";
+import { Timer, nowIso, formatDurationHuman } from "../utils/timer.ts";
 import {
   addTokenUsage,
   emptyToolCallStats,
@@ -77,6 +77,7 @@ export async function runEvaluation(
             type: parsed.dataset.cases[idx]!.type,
             status: "errored" as const,
             duration_ms: 0,
+            duration: "0ms",
             started_at: startTs,
             finished_at: nowIso(),
             validators: [],
@@ -142,6 +143,7 @@ function assembleResult(
       description: loaded.config.description,
       timestamp: startedAt,
       duration_ms: durationMs,
+      duration: formatDurationHuman(durationMs),
       config: {
         model: loaded.config.opencode.model,
         concurrency: loaded.config.execution.concurrency,

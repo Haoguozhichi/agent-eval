@@ -1,6 +1,6 @@
 import type { ValidatorRunner } from "./types.ts";
 import type { Validator } from "../dataset/types.ts";
-import { Timer } from "../utils/timer.ts";
+import { Timer, formatDurationHuman } from "../utils/timer.ts";
 import { createLogger } from "../utils/logger.ts";
 import { fileExistsRunner } from "./builtin/file-exists.ts";
 import { fileDiffRunner } from "./builtin/file-diff.ts";
@@ -41,6 +41,7 @@ export async function runValidators(ctx: ValidatorContext): Promise<ValidationOu
         weight: spec.weight,
         message: `unknown validator type: ${spec.type}`,
         duration_ms: timer.elapsedMs(),
+        duration: formatDurationHuman(timer.elapsedMs()),
       });
       continue;
     }
@@ -54,6 +55,7 @@ export async function runValidators(ctx: ValidatorContext): Promise<ValidationOu
         message: out.message,
         details: out.details,
         duration_ms: timer.elapsedMs(),
+        duration: formatDurationHuman(timer.elapsedMs()),
       });
     } catch (err) {
       log.warn("validator threw", { type: spec.type, err: (err as Error).message });
@@ -63,6 +65,7 @@ export async function runValidators(ctx: ValidatorContext): Promise<ValidationOu
         weight: spec.weight,
         message: `validator error: ${(err as Error).message}`,
         duration_ms: timer.elapsedMs(),
+        duration: formatDurationHuman(timer.elapsedMs()),
       });
     }
   }

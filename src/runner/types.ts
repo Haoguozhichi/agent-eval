@@ -12,6 +12,7 @@ export interface ValidatorResult {
   message: string;
   details?: Record<string, unknown>;
   duration_ms: number;
+  duration: string;
 }
 
 export interface CaseResult {
@@ -21,6 +22,7 @@ export interface CaseResult {
   status: CaseStatus;
   score?: number;
   duration_ms: number;
+  duration: string;
   started_at: string;
   finished_at: string;
   validators: ValidatorResult[];
@@ -49,6 +51,7 @@ export interface RunMetadata {
   description?: string;
   timestamp: string;
   duration_ms: number;
+  duration: string;
   config: {
     model: string;
     concurrency: number;
