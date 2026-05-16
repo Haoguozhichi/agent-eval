@@ -1,0 +1,29 @@
+{
+  "version": "1",
+  "name": "scoring-eval-dataset",
+  "cases": [
+    {
+      "id": "sc-001",
+      "name": "explain event loop",
+      "type": "scoring",
+      "prompt": "Write a 3-paragraph explanation in explain.md of how the Node.js event loop processes timers, I/O callbacks, and microtasks. Include one concrete example.",
+      "validators": [
+        { "type": "file_exists", "path": "explain.md", "weight": 0 },
+        {
+          "type": "llm_judge",
+          "criteria": ["correctness", "clarity", "completeness"],
+          "pass_threshold": 6,
+          "weight": 1
+        }
+      ],
+      "scoring": {
+        "scale": 10,
+        "dimensions": [
+          { "name": "correctness", "weight": 0.5, "description": "Are the technical claims accurate?" },
+          { "name": "clarity", "weight": 0.25, "description": "Is the writing clear and well-structured?" },
+          { "name": "completeness", "weight": 0.25, "description": "Does it cover timers, I/O, and microtasks with an example?" }
+        ]
+      }
+    }
+  ]
+}

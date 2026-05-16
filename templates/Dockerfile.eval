@@ -1,0 +1,18 @@
+# Default base image for agent-eval sandboxes.
+FROM node:20-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates curl git python3 build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://opencode.ai/install | bash \
+    && ln -s /root/.opencode/bin/opencode /usr/local/bin/opencode || true
+
+WORKDIR /workspace
+
+EXPOSE 14096-14256
+
+ENTRYPOINT []
+CMD ["opencode", "serve", "--hostname", "0.0.0.0", "--port", "14096"]

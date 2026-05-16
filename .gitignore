@@ -1,0 +1,11 @@
+node_modules/
+dist/
+results/
+*.log
+.env
+.env.local
+.DS_Store
+bun.lockb
+coverage/
+.idea/
+my-eval/

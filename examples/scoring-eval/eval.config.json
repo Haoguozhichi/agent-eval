@@ -1,0 +1,30 @@
+{
+  "name": "scoring-eval",
+  "description": "scored evaluation with LLM judge",
+  "opencode": {
+    "model": "lmstudio/qwen3.5-9b",
+    "provider": {
+      "lmstudio": {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "LM Studio",
+        "options": { "baseURL": "http://127.0.0.1:1234/v1", "apiKey": "empty" },
+        "models": { "qwen3.5-9b": {} }
+      }
+    },
+    "mcp": {},
+    "skills": {},
+    "permission": { "bash": { "*": "allow" }, "write": { "*": "allow" } }
+  },
+  "sandbox": { "mode": "local" },
+  "execution": { "concurrency": 1, "case_timeout_ms": 240000 },
+  "judge": {
+    "type": "openai_compatible",
+    "model": "qwen3.5-9b",
+    "base_url": "http://127.0.0.1:1234/v1",
+    "api_key": "empty",
+    "temperature": 0,
+    "rubric": "Score on correctness, code quality, and clarity of explanation."
+  },
+  "dataset": "./dataset.json",
+  "output_dir": "./results"
+}

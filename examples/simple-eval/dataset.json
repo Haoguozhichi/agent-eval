@@ -1,0 +1,30 @@
+{
+  "version": "1",
+  "name": "simple-eval-dataset",
+  "cases": [
+    {
+      "id": "tc-001",
+      "name": "create hello.ts with greet",
+      "type": "pass_fail",
+      "prompt": "Create a file hello.ts in the current directory that exports a function greet(name: string): string returning the string `Hello, ${name}!`.",
+      "validators": [
+        { "type": "file_exists", "path": "hello.ts" },
+        { "type": "regex_match", "path": "hello.ts", "pattern": "export\\s+function\\s+greet" }
+      ]
+    },
+    {
+      "id": "tc-002",
+      "name": "fix off-by-one in sum.ts",
+      "type": "pass_fail",
+      "prompt": "Fix the bug in sum.ts so that sum([1,2,3]) returns 6.",
+      "workspace_overlay": "./cases/tc-002/workspace",
+      "validators": [
+        {
+          "type": "command_check",
+          "command": "node --input-type=module -e \"import { sum } from './sum.js'; if(sum([1,2,3])!==6){process.exit(1)}\"",
+          "expected_exit_code": 0
+        }
+      ]
+    }
+  ]
+}

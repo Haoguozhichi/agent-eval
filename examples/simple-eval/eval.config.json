@@ -1,0 +1,23 @@
+{
+  "name": "simple-eval",
+  "description": "minimal pass/fail evaluation",
+  "opencode": {
+    "model": "lmstudio/qwen3.5-9b",
+    "provider": {
+      "lmstudio": {
+        "npm": "@ai-sdk/openai-compatible",
+        "name": "LM Studio",
+        "options": { "baseURL": "http://127.0.0.1:1234/v1", "apiKey": "empty" },
+        "models": { "qwen3.5-9b": {} }
+      }
+    },
+    "mcp": {},
+    "skills": {},
+    "permission": { "bash": { "*": "allow" }, "write": { "*": "allow" } }
+  },
+  "sandbox": { "mode": "local" },
+  "execution": { "concurrency": 1, "case_timeout_ms": 120000 },
+  "dataset": "./dataset.json",
+  "workspace": "./workspace",
+  "output_dir": "./results"
+}
