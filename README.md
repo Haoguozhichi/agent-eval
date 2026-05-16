@@ -1,202 +1,148 @@
 # agent-eval
 
-End-to-end evaluation framework for [opencode](https://opencode.ai). Runs JSON-defined eval cases concurrently, in Docker sandboxes (or locally), and emits `results.json` and `report.md`.
+opencode 端到端评测框架。支持 Web UI 和 CLI 两种使用方式，在 Docker 容器中运行评测（内置 opencode），用户电脑无需安装任何依赖（除 Docker 外）。
 
-## Install
+## 快速开始（Web UI）
+
+只需要 Docker：
+
+```bash
+node launcher/bin/cli.mjs
+```
+
+这会：
+1. 构建/拉取 Docker 镜像（内含 opencode + bun + web 全套环境）
+2. 启动容器，映射端口 7800
+3. 自动打开浏览器 `http://localhost:7800`
+4. 在网页上配置模型、编写用例、启动评测、查看结果
+5. Ctrl+C 停止并清理容器
+
+```bash
+# 自定义端口和结果目录
+node launcher/bin/cli.mjs --port 8080 --results ./my-results
+```
+
+## 快速开始（CLI）
+
+需要本地安装 Bun 和 opencode：
 
 ```bash
 bun install
-```
 
-Requires Bun >= 1.1 and (for the default sandbox) Docker.
-
-## 从零开始运行一次评测
-
-### 1. 安装 opencode
-
-确保 `opencode` 在 PATH 上可用：
-
-```bash
-curl -fsSL https://opencode.ai/install | bash
-opencode --version
-```
-
-### 2. 准备模型服务
-
-启动你的模型服务（以 LM Studio 为例）：
-
-- 打开 LM Studio，加载模型（如 qwen3.5-9b）
-- 启动本地服务器，默认监听 `http://127.0.0.1:1234/v1`
-
-或者使用云端 API（OpenAI、DeepSeek 等），确保对应的 API Key 已 export。
-
-### 3. 初始化评测项目
-
-```bash
+# 初始化评测项目
 bun run bin/agent-eval.ts init -d ./my-eval
 cd my-eval
-```
 
-这会生成：
+# 编辑 eval.config.json 和 dataset.json
 
-```
-my-eval/
-├── eval.config.json   # 评测配置
-├── dataset.json       # 评测用例集
-├── workspace/         # agent 工作区初始文件
-└── .gitignore
-```
-
-### 4. 编辑配置
-
-修改 `eval.config.json` 中的 `opencode.model` 和 `opencode.provider` 指向你的模型服务（格式见下方 Config 参考）。
-
-### 5. 编写评测用例
-
-编辑 `dataset.json`，定义你的测试用例（格式见下方 Dataset 参考）。
-
-### 6. 验证配置
-
-```bash
+# 验证配置
 bun run /path/to/agent-eval/bin/agent-eval.ts validate -c eval.config.json
-```
 
-确认输出 `config and dataset valid`。
-
-### 7. 运行评测
-
-```bash
-# 本地模式（无 Docker）
+# 运行评测（本地模式）
 bun run /path/to/agent-eval/bin/agent-eval.ts run --local -c eval.config.json
-
-# Docker 模式
-bun run /path/to/agent-eval/bin/agent-eval.ts build-image
-bun run /path/to/agent-eval/bin/agent-eval.ts run -c eval.config.json
 ```
 
-### 8. 查看结果
+## Web UI 功能
 
-运行完成后在 `output_dir`（默认 `./results`）下生成：
+| 页面 | 功能 |
+|---|---|
+| 配置页 | 编辑 eval.config.json（模型、provider、沙箱、超时等）+ 编辑/拖拽上传 dataset.json |
+| 运行页 | 实时进度条、用例状态实时更新（SSE 推送）、中止按钮 |
+| 历史页 | 所有评测记录列表，按时间倒序 |
+| 结果详情 | 总览卡片 + 用例表格，点击进入单用例详情 |
+| 用例详情 | 三个 Tab：验证器结果 / Agent 对话日志（含 system prompt）/ 工作区文件浏览 |
 
-- `results.json` — 结构化结果，包含每个用例的 token 用量、工具调用统计、验证器结果
-- `report.md` — 可读的 Markdown 报告
-
----
-
-## CLI
+## CLI 命令
 
 ```
-agent-eval run [-c eval.config.json] [--local] [-j N] [-f glob] [--fail-fast] [--retries N]
-agent-eval validate -c eval.config.json
+agent-eval run [-c config] [--local] [-j N] [-f glob] [--fail-fast] [--retries N] [-o dir]
+agent-eval validate -c config
 agent-eval report -i results.json [-o report.md]
-agent-eval init [-d ./dir]
-agent-eval build-image [-t agent-eval/opencode:latest]
+agent-eval init [-d dir]
+agent-eval build-image [-t tag]
 ```
 
 | 参数 | 说明 |
 |---|---|
 | `-c, --config` | 配置文件路径，默认 `./eval.config.json` |
-| `--local` | 本地模式，不使用 Docker |
-| `-j, --concurrency` | 覆盖并发数 |
-| `-f, --filter` | 按 case id glob 过滤（如 `"tc-00*"`） |
+| `--local` | 本地模式（不使用 Docker 沙箱，需本地安装 opencode） |
+| `-j, --concurrency` | 并发数 |
+| `-f, --filter` | 按 case id glob 过滤 |
 | `--fail-fast` | 首个失败即终止 |
-| `--retries` | 每个用例失败后重试次数 |
-| `-o, --output` | 覆盖输出目录 |
+| `--retries` | 失败重试次数 |
 
----
-
-## Config 参考 (`eval.config.json`)
-
-完整字段说明：
+## 配置文件 (eval.config.json)
 
 ```jsonc
 {
-  // 必填：评测名称
-  "name": "my-eval",
+  "name": "my-eval",                        // 评测名称
+  "description": "描述",                     // 可选
 
-  // 可选：描述
-  "description": "评测描述",
-
-  // 必填：opencode 配置，直接透传给 opencode 的 config
   "opencode": {
-    "model": "lmstudio/qwen3.5-9b",       // 模型标识：provider/model-name
-    "provider": {                           // provider 配置块（透传给 opencode）
+    "model": "lmstudio/qwen3.5-9b",        // provider/model 格式
+    "provider": {                            // 透传给 opencode 的 provider 配置
       "lmstudio": {
         "npm": "@ai-sdk/openai-compatible",
-        "name": "LM Studio",
-        "options": {
-          "baseURL": "http://127.0.0.1:1234/v1",
-          "apiKey": "empty"
-        },
+        "options": { "baseURL": "http://host.docker.internal:1234/v1", "apiKey": "empty" },
         "models": { "qwen3.5-9b": {} }
       }
     },
-    "mcp": {},                              // MCP 服务器配置（可选）
-    "skills": {},                           // 技能配置（必须是 object）
-    "permission": {                         // 权限配置
+    "mcp": {},                               // MCP 配置
+    "skills": {},                            // 技能配置（必须是 object）
+    "permission": {                          // 权限
       "bash": { "*": "allow" },
       "write": { "*": "allow" }
-    },
-    "extra": {}                             // 其他透传字段（可选）
+    }
   },
 
-  // 可选：沙箱配置
   "sandbox": {
-    "mode": "local",                        // "docker" | "local"，默认 "docker"
-    "image": "agent-eval/opencode:latest",  // Docker 镜像名
-    "timeout_ms": 300000,                   // 沙箱总超时（默认 5 分钟）
-    "memory_limit": "2g",                   // Docker 内存限制
-    "cpu_limit": "2",                       // Docker CPU 限制
-    "port_range_start": 14096,              // 端口池起始（默认 14096）
-    "network": "bridge",                    // Docker 网络模式
-    "env": {}                               // 注入沙箱的额外环境变量
+    "mode": "local",                         // "docker" | "local"
+    "timeout_ms": 300000,                    // 沙箱超时
+    "memory_limit": "2g",                    // Docker 内存限制
+    "cpu_limit": "2"                         // Docker CPU 限制
   },
 
-  // 可选：执行配置
   "execution": {
-    "concurrency": 4,                       // 并发用例数（默认 4）
-    "case_timeout_ms": 180000,              // 单用例超时（默认 3 分钟）
-    "global_timeout_ms": 3600000,           // 全局超时（默认 1 小时）
-    "retries": 0,                           // 失败重试次数（默认 0）
-    "fail_fast": false                      // 首个失败即终止（默认 false）
+    "concurrency": 2,                        // 并发用例数
+    "case_timeout_ms": 300000,               // 单用例超时
+    "global_timeout_ms": 3600000,            // 全局超时
+    "retries": 0,                            // 失败重试
+    "fail_fast": false                       // 首个失败即终止
   },
 
-  // 可选：LLM 裁判配置（用于 llm_judge 验证器）
-  "judge": {
-    "type": "openai_compatible",            // "openai_compatible" | "anthropic"
-    "model": "qwen3.5-9b",                 // 裁判模型名
-    "base_url": "http://127.0.0.1:1234/v1",// API 地址（openai_compatible 必填）
-    "api_key": "empty",                     // API Key（直接值）
-    "api_key_env": "OPENAI_API_KEY",        // 或从环境变量读取
-    "temperature": 0,                       // 温度（默认 0）
-    "max_tokens": 8192,                     // 最大输出 token（默认 8192）
-    "rubric": "评分标准描述",                // 全局评分标准
-    "extra_headers": {}                     // 额外 HTTP 头
+  "judge": {                                 // 可选：LLM 裁判
+    "type": "openai_compatible",             // "openai_compatible" | "anthropic"
+    "model": "qwen3.5-9b",
+    "base_url": "http://host.docker.internal:1234/v1",
+    "api_key": "empty",
+    "temperature": 0,
+    "max_tokens": 8192
   },
 
-  // 必填：数据集文件路径（相对于 config 文件）
-  "dataset": "./dataset.json",
-
-  // 可选：全局 workspace 目录（所有用例共享的初始文件）
-  "workspace": "./workspace",
-
-  // 可选：结果输出目录（默认 "./results"）
-  "output_dir": "./results"
+  "dataset": "./dataset.json",              // 数据集路径
+  "workspace": "./workspace",               // 全局工作区
+  "output_dir": "./results"                  // 输出目录
 }
 ```
 
 ### Provider 配置示例
 
-`opencode.provider` 块直接透传给 opencode，支持 opencode 支持的所有 provider：
-
 ```jsonc
-// LM Studio（本地）
+// LM Studio（Docker 容器内访问宿主机）
 "provider": {
   "lmstudio": {
     "npm": "@ai-sdk/openai-compatible",
-    "name": "LM Studio",
-    "options": { "baseURL": "http://127.0.0.1:1234/v1", "apiKey": "empty" },
+    "options": { "baseURL": "http://host.docker.internal:1234/v1", "apiKey": "empty" },
     "models": { "qwen3.5-9b": {} }
+  }
+}
+
+// Ollama
+"provider": {
+  "ollama": {
+    "npm": "@ai-sdk/openai-compatible",
+    "options": { "baseURL": "http://host.docker.internal:11434/v1", "apiKey": "ollama" },
+    "models": { "qwen2.5-coder:32b": {} }
   }
 }
 
@@ -205,74 +151,49 @@ agent-eval build-image [-t agent-eval/opencode:latest]
   "anthropic": { "api_key_env": "ANTHROPIC_API_KEY" }
 }
 
-// OpenAI-compatible（DeepSeek / Moonshot / Together 等）
+// DeepSeek
 "provider": {
-  "openai": {
+  "deepseek": {
     "npm": "@ai-sdk/openai-compatible",
     "options": { "baseURL": "https://api.deepseek.com/v1", "apiKey_env": "DEEPSEEK_API_KEY" },
     "models": { "deepseek-chat": {} }
   }
 }
-
-// Ollama
-"provider": {
-  "ollama": {
-    "npm": "@ai-sdk/openai-compatible",
-    "options": { "baseURL": "http://localhost:11434/v1", "apiKey": "ollama" },
-    "models": { "qwen2.5-coder:32b": {} }
-  }
-}
 ```
 
-### Judge 配置
+> Docker 容器内访问宿主机服务用 `host.docker.internal`，本地 CLI 模式用 `127.0.0.1`。
 
-`judge` 块为 `llm_judge` 验证器提供裁判模型。两种 `type`：
-
-- `openai_compatible`（默认）— 调用 `/chat/completions`，兼容 OpenAI / DeepSeek / Ollama / vLLM / LM Studio 等
-- `anthropic` — 调用 `/v1/messages`
-
-`api_key_env` 从环境变量读取 key；`api_key` 直接写值（适合本地服务器）。`extra_headers` 原样转发，适合需要自定义认证头的网关。
-
----
-
-## Dataset 参考 (`dataset.json`)
-
-完整字段说明：
+## 数据集 (dataset.json)
 
 ```jsonc
 {
-  "version": "1",                           // 可选：版本号
-  "name": "my-dataset",                     // 可选：数据集名称
-  "description": "数据集描述",               // 可选
-
+  "version": "1",
+  "name": "my-dataset",
   "cases": [
     {
-      // === 必填字段 ===
-      "id": "tc-001",                       // 唯一标识（用于过滤和报告）
-      "prompt": "创建 hello.ts...",          // 发送给 agent 的指令
+      "id": "tc-001",                        // 唯一 ID
+      "name": "创建 hello 函数",              // 可读名称
+      "type": "pass_fail",                   // "pass_fail"(默认) | "scoring"
+      "prompt": "创建 hello.ts...",           // 发给 agent 的指令
 
-      // === 可选字段 ===
-      "name": "创建 hello 函数",             // 可读名称（报告中显示）
-      "description": "详细描述",             // 用例描述
-      "type": "pass_fail",                  // "pass_fail"（默认）| "scoring"
-      "tags": ["basic", "typescript"],      // 标签（用于分类）
-      "timeout_ms": 60000,                  // 覆盖单用例超时
-      "workspace_overlay": "./cases/tc-001/workspace",  // 用例专属文件覆盖
-      "reference_answer": "参考答案...",     // 参考答案（传给 judge）
-      "setup_commands": ["npm install"],    // 执行前运行的命令
-      "teardown_commands": ["rm -rf tmp"],  // 执行后运行的命令
+      "workspace_overlay": "./cases/tc-001/workspace",  // 用例专属初始文件
+      "timeout_ms": 60000,                   // 覆盖超时
+      "setup_commands": ["npm install"],     // 执行前命令
+      "teardown_commands": [],               // 执行后命令
+      "tags": ["basic"],                     // 标签
+      "reference_answer": "...",             // 参考答案（传给 judge）
 
-      // === 验证器 ===
-      "validators": [
-        { "type": "file_exists", "path": "hello.ts" }
+      "validators": [                        // 验证器列表
+        { "type": "file_exists", "path": "hello.ts" },
+        { "type": "regex_match", "path": "hello.ts", "pattern": "export function greet" }
       ],
 
-      // === scoring 类型专属 ===
+      // scoring 类型专属
       "scoring": {
-        "scale": 10,                        // 评分量表（默认 10）
-        "dimensions": [                     // 评分维度
-          { "name": "correctness", "weight": 0.5, "description": "技术正确性" },
-          { "name": "clarity", "weight": 0.5, "description": "表达清晰度" }
+        "scale": 10,
+        "dimensions": [
+          { "name": "correctness", "weight": 0.5 },
+          { "name": "clarity", "weight": 0.5 }
         ]
       }
     }
@@ -280,238 +201,131 @@ agent-eval build-image [-t agent-eval/opencode:latest]
 }
 ```
 
-### Workspace 与 Overlay
+### Workspace 机制
 
-- `workspace`（config 级）— 全局初始文件，所有用例共享。适合放 `package.json`、`tsconfig.json` 等公共文件
-- `workspace_overlay`（case 级）— 用例专属文件，会覆盖到 workspace 之上。适合放需要 agent 修改的源文件
+- `workspace`（config 级）— 全局初始文件，所有用例共享
+- `workspace_overlay`（case 级）— 用例专属文件，覆盖到 workspace 之上
 
-执行时的复制顺序：`workspace` → `workspace_overlay` → 启动 opencode
+复制顺序：`workspace` → `workspace_overlay` → 启动 opencode
 
-### 验证器详解
+### 验证器
 
-每个验证器都有公共字段 `weight`（权重，默认 1）和 `description`（描述）。
-
-| 类型 | 参数 | 说明 |
+| 类型 | 说明 | 关键参数 |
 |---|---|---|
-| `file_exists` | `path`, `should_exist`(默认 true) | 检查文件是否存在 |
-| `file_diff` | `path`, `expected`/`expected_path`, `ignore_whitespace`, `ignore_trailing_newline` | 文件内容精确匹配 |
-| `command_check` | `command`, `expected_exit_code`(默认 0), `expected_stdout`, `expected_stdout_regex`, `timeout_ms`, `cwd`, `shell` | 运行命令检查退出码/输出 |
-| `regex_match` | `path`, `pattern`, `flags`, `should_match`(默认 true) | 正则匹配文件内容 |
-| `json_match` | `path`, `expected`/`expected_path`, `partial`(默认 false) | JSON 深度对比 |
-| `script` | `script`, `shell`, `timeout_ms`, `expected_exit_code` | 任意脚本，退出码为判定 |
-| `llm_judge` | `criteria`, `rubric`, `pass_threshold`(默认 6) | LLM 裁判打分（需配置 `judge` 块） |
+| `file_exists` | 文件存在性 | `path`, `should_exist` |
+| `file_diff` | 文件内容匹配 | `path`, `expected`/`expected_path`, `ignore_whitespace` |
+| `command_check` | 命令退出码/输出 | `command`, `expected_exit_code`, `expected_stdout_regex` |
+| `regex_match` | 正则匹配文件 | `path`, `pattern`, `flags`, `should_match` |
+| `json_match` | JSON 深度对比 | `path`, `expected`, `partial` |
+| `script` | 任意脚本 | `script`, `expected_exit_code` |
+| `llm_judge` | LLM 裁判打分 | `criteria`, `pass_threshold`（需配置 `judge` 块） |
 
-### 用例类型
+## 输出结构
 
-**pass_fail**（默认）— 所有验证器通过即 passed，任一失败即 failed。
+每次评测生成以下文件：
 
-**scoring** — 验证器返回分数，按 weight 加权聚合为最终得分。需要定义 `scoring.dimensions`。`llm_judge` 会按 dimensions 逐项打分并返回 breakdown。
+```
+results/{run-id}/
+├── results.json          ← 结构化结果（含 token、工具调用统计）
+├── report.md             ← 中文 Markdown 报告
+└── cases/
+    ├── tc-001/
+    │   ├── workspace/    ← agent 执行后的工作区快照（生成的文件都在这里）
+    │   └── messages.json ← 完整对话日志（含 system prompt、tool 调用详情）
+    └── tc-002/
+        ├── workspace/
+        └── messages.json
+```
 
----
-
-## 输出结果
-
-### results.json
-
-完整结构：
+### results.json 关键字段
 
 ```jsonc
 {
   "metadata": {
-    "eval_name": "my-eval",                 // 评测名称
-    "description": "...",                   // 描述
-    "timestamp": "2026-05-16T07:25:35Z",   // 开始时间
-    "duration_ms": 30400,                   // 总耗时
-    "config": {
-      "model": "lmstudio/qwen3.5-9b",      // 使用的模型
-      "concurrency": 2,                    // 并发数
-      "sandbox_mode": "local",             // 沙箱模式
-      "judge_model": "qwen3.5-9b"          // 裁判模型（如有）
-    },
-    "agent_eval_version": "0.1.0"
+    "eval_name": "my-eval",
+    "duration_ms": 37803,
+    "duration": "37s 803ms",              // 人类可读耗时
+    "config": { "model": "...", "concurrency": 2, "sandbox_mode": "local" }
   },
-
   "summary": {
-    "total": 2,                             // 总用例数
-    "passed": 2,                            // 通过数
-    "failed": 0,                            // 失败数
-    "errored": 0,                           // 错误数（执行异常）
-    "timeout": 0,                           // 超时数
-    "skipped": 0,                           // 跳过数
-    "pass_rate": 1.0,                       // 通过率（不含 skipped）
-    "average_score": 7.5,                   // 平均分（仅 scoring 类型，无则 null）
-
-    "total_tokens": {                       // 全部用例 token 汇总
-      "input": 224983,                      //   输入 token
-      "output": 758,                        //   输出 token
-      "cache_read": 0,                      //   缓存读取（provider 支持时）
-      "cache_write": 0,                     //   缓存写入
-      "total": 225741                       //   总计
-    },
-    "total_tool_calls": {                   // 全部用例工具调用汇总
-      "total": 7,                           //   总调用次数
-      "by_tool": {                          //   按工具名分桶
-        "write": 1,
-        "glob": 2,
-        "bash": 1,
-        "read": 1,
-        "edit": 1,
-        "grep": 1
-      },
-      "errors": 0                           //   失败的工具调用数
-    },
-    "total_messages": 9                     // 全部 assistant 消息数
+    "pass_rate": 1.0,
+    "total_tokens": { "input": 48620, "output": 136, "total": 48756 },
+    "total_tool_calls": { "total": 1, "by_tool": { "write": 1 }, "errors": 0 },
+    "total_messages": 2
   },
-
-  "cases": [
-    {
-      "id": "tc-001",                       // 用例 ID
-      "name": "create hello.ts",            // 用例名称
-      "type": "pass_fail",                  // 用例类型
-      "status": "passed",                   // "passed"|"failed"|"errored"|"timeout"|"skipped"
-      "score": null,                        // 得分（scoring 类型）
-      "duration_ms": 38616,                 // 用例耗时
-      "started_at": "2026-05-16T07:47:38Z",
-      "finished_at": "2026-05-16T07:48:19Z",
-      "attempt": 1,                         // 第几次尝试
-
-      "metrics": {
-        "tokens": {                         // 本用例 token 用量
-          "input": 48649,
-          "output": 150,
-          "cache_read": 0,
-          "cache_write": 0,
-          "total": 48799
-        },
-        "tool_calls": {                     // 本用例工具调用
-          "total": 1,
-          "by_tool": { "write": 1 },
-          "errors": 0
-        },
-        "messages": 2                       // assistant 消息轮数
-      },
-
-      "validators": [                       // 每个验证器的结果
-        {
-          "type": "file_exists",
-          "passed": true,
-          "score": null,                    // scoring 验证器会有分数
-          "weight": 1,
-          "message": "hello.ts exists as expected",
-          "details": { "path": "hello.ts", "exists": true },
-          "duration_ms": 1
-        }
-      ],
-
-      "agent_output_summary": "...",        // agent 输出摘要（截断到 800 字符）
-      "error": null                         // 错误信息（status 为 errored/timeout 时）
+  "cases": [{
+    "id": "tc-001",
+    "status": "passed",
+    "duration": "34s 784ms",
+    "metrics": {
+      "tokens": { "input": 48620, "output": 136, "total": 48756 },
+      "tool_calls": { "total": 1, "by_tool": { "write": 1 }, "errors": 0 },
+      "messages": 2
     }
-  ]
+  }]
 }
 ```
 
-### report.md
-
-Markdown 格式的可读报告，包含：
-
-- **Metadata** — 时间、模型、沙箱模式、并发数、版本
-- **Summary 表** — 通过率、总 token、总工具调用、按工具分桶统计
-- **Cases 总览表** — 每个用例一行：ID、名称、状态、得分、耗时、token、工具调用数
-- **每个用例详情** — 状态、得分、耗时、token 明细、工具调用分桶、验证器结果表、agent 输出摘要
-
-### cases/ 目录（工作区快照 + 完整日志）
-
-每个用例执行完成后，agent-eval 会自动保存：
-
-```
-results/cases/
-├── tc-001/
-│   ├── workspace/          ← agent 执行后的完整工作区快照
-│   │   ├── hello.ts        ← agent 生成的文件
-│   │   └── opencode.json   ← opencode 配置
-│   └── messages.json       ← 完整对话日志（含 system prompt）
-├── tc-002/
-│   ├── workspace/
-│   │   ├── sum.js          ← agent 修改后的文件
-│   │   └── opencode.json
-│   └── messages.json
-└── ...
-```
-
-**workspace/** — agent 执行结束时工作目录的完整快照。可以直接查看 agent 生成或修改了哪些文件。即使用例超时或出错，也会尽力保存。
-
-**messages.json** — opencode 返回的完整消息列表，包含：
-- system 消息（含完整 system prompt）
-- user 消息（评测 prompt）
-- assistant 消息（含 reasoning、text、tool parts）
-- 每个 tool part 包含 `tool` 名称、`state.input`、`state.output`、`state.status`
-
-示例 messages.json 结构：
+### messages.json 结构
 
 ```jsonc
 [
+  { "info": { "role": "user" }, "parts": [{ "type": "text", "text": "..." }] },
   {
-    "info": { "role": "user", "id": "msg_..." },
+    "info": { "role": "assistant" },
     "parts": [
-      { "type": "text", "text": "Create hello.ts..." }
-    ]
-  },
-  {
-    "info": { "role": "assistant", "id": "msg_..." },
-    "parts": [
-      { "type": "step-start" },
       { "type": "reasoning", "reasoning": "..." },
-      { "type": "text", "text": "I'll create the file..." },
-      {
-        "type": "tool",
-        "tool": "write",
-        "state": {
-          "status": "completed",
-          "input": { "path": "hello.ts", "content": "..." },
-          "output": "File written successfully"
-        }
-      },
-      { "type": "step-finish" }
+      { "type": "text", "text": "..." },
+      { "type": "tool", "tool": "write", "state": { "status": "completed", "input": {...}, "output": "..." } }
     ]
   }
 ]
 ```
 
-示例片段：
+## Docker 架构
 
-```markdown
-## Summary
-
-| Metric | Value |
-|---|---|
-| Total cases | 2 |
-| Passed | 2 |
-| Pass rate | 100.0% |
-| Total tokens | 225741 (in 224983, out 758, cache r 0 / w 0) |
-| Total tool calls | 7 (0 errored) |
-
-### Tool calls by tool
-
-| Tool | Count |
-|---|---:|
-| `glob` | 2 |
-| `write` | 1 |
-| `bash` | 1 |
-
-### tc-001 — create hello.ts
-
-- Status: **passed**
-- Tokens: 48799 (in 48649, out 150, cache r 0 / w 0)
-- Tool calls: 1 (0 errored)
-  - By tool: `write`×1
-- Messages: 2
+```
+┌─────────────────────────────────────────┐
+│  Docker 容器 (agent-eval:latest)         │
+│                                          │
+│  ┌──────────┐  ┌───────────────────┐    │
+│  │ Bun Web  │  │ opencode (内置)    │    │
+│  │ Server   │  │                   │    │
+│  │ :7800    │──│ 每个 case 启动一个  │    │
+│  │          │  │ opencode serve    │    │
+│  └──────────┘  └───────────────────┘    │
+│       │                    │             │
+│       ▼                    ▼             │
+│  /app/results         /tmp/workspace     │
+└───────┬────────────────────────────────┘
+        │ -v 挂载
+        ▼
+  宿主机 ./results/
 ```
 
----
+容器通过 `host.docker.internal` 访问宿主机上的模型服务（LM Studio / Ollama 等）。
 
-## Tests
+## 开发
 
 ```bash
-bun run test          # vitest
-bun run typecheck     # tsc --noEmit
+# 安装依赖
+bun install && cd web && bun install && cd ..
+
+# 后端开发（API server）
+bun run bin/agent-eval-web.ts
+
+# 前端开发（Vite dev server，代理 API 到 7800）
+cd web && bun run dev
+
+# 类型检查
+bun run typecheck
+
+# 测试
+bun run test
+
+# 构建前端
+cd web && npx vite build
+
+# 构建 Docker 镜像
+docker build -t agent-eval:latest .
 ```
