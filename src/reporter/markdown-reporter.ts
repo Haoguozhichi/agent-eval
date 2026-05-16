@@ -21,38 +21,38 @@ export function renderMarkdown(result: RunResult): string {
   lines.push(`# ${m.eval_name}`);
   if (m.description) lines.push("", m.description);
   lines.push("");
-  lines.push("## Metadata");
+  lines.push("## 基本信息");
   lines.push("");
-  lines.push(`- Timestamp: ${m.timestamp}`);
-  lines.push(`- Duration: ${formatDuration(m.duration_ms)}`);
-  lines.push(`- Model: \`${m.config.model}\``);
-  lines.push(`- Sandbox: \`${m.config.sandbox_mode}\``);
-  lines.push(`- Concurrency: ${m.config.concurrency}`);
-  if (m.config.judge_model) lines.push(`- Judge: \`${m.config.judge_model}\``);
+  lines.push(`- 时间: ${m.timestamp}`);
+  lines.push(`- 总耗时: ${m.duration}`);
+  lines.push(`- 模型: \`${m.config.model}\``);
+  lines.push(`- 沙箱: \`${m.config.sandbox_mode}\``);
+  lines.push(`- 并发数: ${m.config.concurrency}`);
+  if (m.config.judge_model) lines.push(`- 裁判模型: \`${m.config.judge_model}\``);
   lines.push(`- agent-eval: v${m.agent_eval_version}`);
   lines.push("");
 
-  lines.push("## Summary");
+  lines.push("## 总览");
   lines.push("");
-  lines.push("| Metric | Value |");
+  lines.push("| 指标 | 值 |");
   lines.push("|---|---|");
-  lines.push(`| Total cases | ${s.total} |`);
-  lines.push(`| Passed | ${s.passed} |`);
-  lines.push(`| Failed | ${s.failed} |`);
-  lines.push(`| Errored | ${s.errored} |`);
-  lines.push(`| Timeout | ${s.timeout} |`);
-  lines.push(`| Skipped | ${s.skipped} |`);
-  lines.push(`| Pass rate | ${(s.pass_rate * 100).toFixed(1)}% |`);
-  if (s.average_score !== null) lines.push(`| Average score | ${s.average_score.toFixed(2)} |`);
-  lines.push(`| Total messages | ${s.total_messages} |`);
-  lines.push(`| Total tool calls | ${s.total_tool_calls.total} (${s.total_tool_calls.errors} errored) |`);
-  lines.push(`| Total tokens | ${formatTokens(s.total_tokens)} |`);
+  lines.push(`| 总用例数 | ${s.total} |`);
+  lines.push(`| 通过 | ${s.passed} |`);
+  lines.push(`| 失败 | ${s.failed} |`);
+  lines.push(`| 错误 | ${s.errored} |`);
+  lines.push(`| 超时 | ${s.timeout} |`);
+  lines.push(`| 跳过 | ${s.skipped} |`);
+  lines.push(`| 通过率 | ${(s.pass_rate * 100).toFixed(1)}% |`);
+  if (s.average_score !== null) lines.push(`| 平均分 | ${s.average_score.toFixed(2)} |`);
+  lines.push(`| 总消息轮数 | ${s.total_messages} |`);
+  lines.push(`| 总工具调用 | ${s.total_tool_calls.total} (${s.total_tool_calls.errors} 次失败) |`);
+  lines.push(`| 总 Token | ${formatTokens(s.total_tokens)} |`);
   lines.push("");
 
   if (Object.keys(s.total_tool_calls.by_tool).length > 0) {
-    lines.push("### Tool calls by tool");
+    lines.push("### 工具调用分布");
     lines.push("");
-    lines.push("| Tool | Count |");
+    lines.push("| 工具 | 次数 |");
     lines.push("|---|---:|");
     for (const [tool, n] of sortedEntries(s.total_tool_calls.by_tool)) {
       lines.push(`| \`${tool}\` | ${n} |`);
@@ -60,15 +60,15 @@ export function renderMarkdown(result: RunResult): string {
     lines.push("");
   }
 
-  lines.push("## Cases");
+  lines.push("## 用例结果");
   lines.push("");
-  lines.push("| ID | Name | Status | Score | Duration | Tokens | Tool calls |");
+  lines.push("| ID | 名称 | 状态 | 得分 | 耗时 | Token | 工具调用 |");
   lines.push("|---|---|---|---:|---:|---:|---:|");
   for (const c of result.cases) {
     lines.push(
       `| \`${c.id}\` | ${escapeCell(c.name)} | ${statusBadge(c.status)} | ${
         c.score !== undefined ? c.score.toFixed(2) : "—"
-      } | ${formatDuration(c.duration_ms)} | ${c.metrics.tokens.total} | ${c.metrics.tool_calls.total} |`,
+      } | ${c.duration} | ${c.metrics.tokens.total} | ${c.metrics.tool_calls.total} |`,
     );
   }
   lines.push("");
@@ -76,25 +76,25 @@ export function renderMarkdown(result: RunResult): string {
   for (const c of result.cases) {
     lines.push(`### ${c.id} — ${c.name}`);
     lines.push("");
-    lines.push(`- Status: **${c.status}**`);
-    if (c.score !== undefined) lines.push(`- Score: ${c.score.toFixed(2)}`);
-    lines.push(`- Duration: ${formatDuration(c.duration_ms)}`);
-    lines.push(`- Attempt: ${c.attempt}`);
-    lines.push(`- Tokens: ${formatTokens(c.metrics.tokens)}`);
+    lines.push(`- 状态: **${statusText(c.status)}**`);
+    if (c.score !== undefined) lines.push(`- 得分: ${c.score.toFixed(2)}`);
+    lines.push(`- 耗时: ${c.duration}`);
+    lines.push(`- 尝试次数: ${c.attempt}`);
+    lines.push(`- Token: ${formatTokens(c.metrics.tokens)}`);
     lines.push(
-      `- Tool calls: ${c.metrics.tool_calls.total} (${c.metrics.tool_calls.errors} errored)`,
+      `- 工具调用: ${c.metrics.tool_calls.total} 次 (${c.metrics.tool_calls.errors} 次失败)`,
     );
     if (Object.keys(c.metrics.tool_calls.by_tool).length > 0) {
       const breakdown = sortedEntries(c.metrics.tool_calls.by_tool)
         .map(([k, v]) => `\`${k}\`×${v}`)
         .join(", ");
-      lines.push(`  - By tool: ${breakdown}`);
+      lines.push(`  - 分布: ${breakdown}`);
     }
-    lines.push(`- Messages: ${c.metrics.messages}`);
-    if (c.error) lines.push("", `> Error: ${c.error}`);
+    lines.push(`- 消息轮数: ${c.metrics.messages}`);
+    if (c.error) lines.push("", `> 错误: ${c.error}`);
     if (c.validators.length > 0) {
-      lines.push("", "**Validators:**", "");
-      lines.push("| Type | Result | Score | Message |");
+      lines.push("", "**验证器结果:**", "");
+      lines.push("| 类型 | 结果 | 得分 | 说明 |");
       lines.push("|---|---|---:|---|");
       for (const v of c.validators) {
         lines.push(
@@ -105,7 +105,7 @@ export function renderMarkdown(result: RunResult): string {
       }
     }
     if (c.agent_output_summary) {
-      lines.push("", "**Agent output:**", "", "```", c.agent_output_summary, "```");
+      lines.push("", "**Agent 输出:**", "", "```", c.agent_output_summary, "```");
     }
     lines.push("");
   }
@@ -116,26 +116,35 @@ export function renderMarkdown(result: RunResult): string {
 function statusBadge(status: CaseResult["status"]): string {
   switch (status) {
     case "passed":
-      return "✅ passed";
+      return "✅ 通过";
     case "failed":
-      return "❌ failed";
+      return "❌ 失败";
     case "errored":
-      return "💥 errored";
+      return "💥 错误";
     case "timeout":
-      return "⌛ timeout";
+      return "⌛ 超时";
     case "skipped":
-      return "⏭ skipped";
+      return "⏭ 跳过";
   }
 }
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${Math.floor(ms / 60000)}m${Math.round((ms % 60000) / 1000)}s`;
+function statusText(status: CaseResult["status"]): string {
+  switch (status) {
+    case "passed":
+      return "通过";
+    case "failed":
+      return "失败";
+    case "errored":
+      return "错误";
+    case "timeout":
+      return "超时";
+    case "skipped":
+      return "跳过";
+  }
 }
 
 function formatTokens(t: TokenUsage): string {
-  return `${t.total} (in ${t.input}, out ${t.output}, cache r ${t.cache_read} / w ${t.cache_write})`;
+  return `${t.total} (输入 ${t.input}, 输出 ${t.output}, 缓存读 ${t.cache_read} / 写 ${t.cache_write})`;
 }
 
 function escapeCell(s: string): string {

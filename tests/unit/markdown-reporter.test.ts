@@ -52,10 +52,10 @@ const baseResult: RunResult = {
 describe("renderMarkdown", () => {
   it("includes token and tool call totals", () => {
     const md = renderMarkdown(baseResult);
-    expect(md).toContain("| Total tokens | 165");
-    expect(md).toContain("| Total tool calls | 3");
+    expect(md).toContain("| 总 Token | 165");
+    expect(md).toContain("| 总工具调用 | 3");
     expect(md).toContain("`Read` | 2");
-    expect(md).toContain("Tool calls: 3");
+    expect(md).toContain("工具调用: 3");
   });
 
   it("renders pass rate as percentage", () => {
