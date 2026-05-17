@@ -2,70 +2,60 @@
   <div class="max-w-4xl mx-auto space-y-6">
     <h2 class="text-xl font-bold">评测运行</h2>
 
-    <div v-if="status === 'idle'" class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+    <div v-if="status === 'idle' && cases.length === 0" class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
       <p>当前没有正在运行的评测</p>
       <router-link to="/config" class="text-blue-600 text-sm hover:underline">去配置页面启动评测</router-link>
     </div>
 
     <div v-else class="space-y-4">
-      <!-- Dataset info + spinner -->
-      <div class="bg-white rounded-lg shadow p-6 space-y-3">
-        <div class="flex items-center gap-3">
+      <!-- Header: eval name + spinner + status -->
+      <div class="bg-white rounded-lg shadow p-5">
+        <div class="flex items-center gap-3 mb-3">
           <div v-if="status === 'running'" class="spinner"></div>
-          <div>
-            <div class="text-sm font-medium text-gray-700">
-              {{ evalName || '评测进行中' }}
-            </div>
-            <div class="text-xs text-gray-500">
-              {{ currentCaseLabel }}
-            </div>
+          <div class="flex-1">
+            <div class="font-medium text-gray-800">{{ evalName || '评测' }}</div>
+            <div class="text-xs text-gray-500 mt-0.5">{{ currentCaseLabel }}</div>
           </div>
-          <span :class="['ml-auto text-sm font-medium', statusColor]">{{ statusText }}</span>
+          <span :class="['text-sm font-medium px-2 py-1 rounded', statusBadgeClass]">{{ statusText }}</span>
         </div>
 
         <!-- Progress bar -->
-        <div class="w-full bg-gray-200 rounded-full h-3">
-          <div
-            class="bg-blue-600 h-3 rounded-full transition-all duration-500"
-            :style="{ width: progressPercent + '%' }"
-          ></div>
+        <div class="w-full bg-gray-200 rounded-full h-2.5">
+          <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" :style="{ width: progressPercent + '%' }"></div>
         </div>
-        <div class="flex gap-4 text-sm text-gray-600">
-          <span>进度: {{ progress.completed }} / {{ progress.total }}</span>
-          <span>✅ {{ progress.passed }}</span>
-          <span>❌ {{ progress.failed }}</span>
+        <div class="flex gap-4 text-xs text-gray-500 mt-2">
+          <span>进度: {{ progress.completed }}/{{ progress.total }}</span>
+          <span class="text-green-600">✅ {{ progress.passed }}</span>
+          <span class="text-red-600">❌ {{ progress.failed }}</span>
         </div>
       </div>
 
-      <!-- Case list -->
-      <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-4 py-2 text-left">ID</th>
-              <th class="px-4 py-2 text-left">名称</th>
-              <th class="px-4 py-2 text-left">状态</th>
-              <th class="px-4 py-2 text-right">耗时</th>
-              <th class="px-4 py-2 text-right">Token</th>
-              <th class="px-4 py-2 text-right">工具调用</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in cases" :key="c.id" :class="['border-t', c.status === 'running' ? 'bg-blue-50' : '']">
-              <td class="px-4 py-2 font-mono text-xs">{{ c.id }}</td>
-              <td class="px-4 py-2">{{ c.name || c.id }}</td>
-              <td class="px-4 py-2">
-                <span class="flex items-center gap-1">
-                  <span v-if="c.status === 'running'" class="spinner-sm"></span>
-                  {{ statusEmoji(c.status) }}
-                </span>
-              </td>
-              <td class="px-4 py-2 text-right">{{ c.duration ?? "—" }}</td>
-              <td class="px-4 py-2 text-right">{{ c.tokens ?? "—" }}</td>
-              <td class="px-4 py-2 text-right">{{ c.tool_calls ?? "—" }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Currently running case -->
+      <div v-if="currentCase" class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+        <div class="spinner-sm"></div>
+        <div>
+          <div class="text-sm font-medium text-blue-800">正在评测: {{ currentCase.name || currentCase.id }}</div>
+          <div class="text-xs text-blue-600">{{ currentCase.id }}</div>
+        </div>
+      </div>
+
+      <!-- Completed cases -->
+      <div v-if="completedCases.length > 0" class="space-y-3">
+        <h3 class="text-sm font-medium text-gray-600">已完成用例</h3>
+        <div v-for="c in completedCases" :key="c.id" :class="['border rounded-lg p-4', caseCardClass(c.status)]">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-sm font-medium">{{ statusIcon(c.status) }} {{ c.name || c.id }}</span>
+              <span class="text-xs text-gray-500 ml-2 font-mono">{{ c.id }}</span>
+            </div>
+            <span :class="['text-xs px-2 py-0.5 rounded', caseStatusClass(c.status)]">{{ c.status }}</span>
+          </div>
+          <div class="flex gap-4 text-xs text-gray-500 mt-2">
+            <span>耗时: {{ c.duration || '—' }}</span>
+            <span>Token: {{ c.tokens ?? '—' }}</span>
+            <span>工具调用: {{ c.tool_calls ?? '—' }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Actions -->
@@ -74,7 +64,7 @@
           中止评测
         </button>
         <router-link v-if="status === 'completed' && runId" :to="`/results/${runId}`" class="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 inline-block">
-          查看结果
+          查看详细结果
         </router-link>
       </div>
     </div>
@@ -90,17 +80,19 @@ const runId = ref<string | null>(null);
 const evalName = ref("");
 const progress = ref({ total: 0, completed: 0, passed: 0, failed: 0 });
 const cases = ref<any[]>([]);
-const currentCaseId = ref<string | null>(null);
+const currentCase = ref<any>(null);
 let eventSource: EventSource | null = null;
+
+const completedCases = computed(() => cases.value.filter((c) => c.status !== "running"));
 
 const progressPercent = computed(() =>
   progress.value.total > 0 ? (progress.value.completed / progress.value.total) * 100 : 0
 );
 
 const currentCaseLabel = computed(() => {
-  if (status.value === "completed") return `已完成 ${progress.value.total} 个用例`;
+  if (status.value === "completed") return `已完成全部 ${progress.value.total} 个用例`;
   if (status.value === "error") return "评测出错";
-  if (currentCaseId.value) return `正在评测: ${currentCaseId.value}`;
+  if (currentCase.value) return `正在评测第 ${progress.value.completed + 1}/${progress.value.total} 个用例`;
   if (progress.value.total > 0) return `共 ${progress.value.total} 个用例`;
   return "准备中...";
 });
@@ -114,28 +106,46 @@ const statusText = computed(() => {
   }
 });
 
-const statusColor = computed(() => {
+const statusBadgeClass = computed(() => {
   switch (status.value) {
-    case "running": return "text-blue-600";
-    case "completed": return "text-green-600";
-    case "error": return "text-red-600";
-    default: return "text-gray-600";
+    case "running": return "bg-blue-100 text-blue-700";
+    case "completed": return "bg-green-100 text-green-700";
+    case "error": return "bg-red-100 text-red-700";
+    default: return "bg-gray-100 text-gray-600";
   }
 });
 
-function statusEmoji(s: string) {
+function statusIcon(s: string) {
   switch (s) {
-    case "passed": return "✅ 通过";
-    case "failed": return "❌ 失败";
-    case "errored": return "💥 错误";
-    case "timeout": return "⌛ 超时";
-    case "running": return "运行中";
-    default: return "⏳ 等待";
+    case "passed": return "✅";
+    case "failed": return "❌";
+    case "errored": return "💥";
+    case "timeout": return "⌛";
+    default: return "⏭";
+  }
+}
+
+function caseCardClass(s: string) {
+  switch (s) {
+    case "passed": return "border-green-200 bg-green-50";
+    case "failed": return "border-red-200 bg-red-50";
+    case "errored": return "border-orange-200 bg-orange-50";
+    case "timeout": return "border-yellow-200 bg-yellow-50";
+    default: return "border-gray-200 bg-gray-50";
+  }
+}
+
+function caseStatusClass(s: string) {
+  switch (s) {
+    case "passed": return "bg-green-100 text-green-700";
+    case "failed": return "bg-red-100 text-red-700";
+    case "errored": return "bg-orange-100 text-orange-700";
+    case "timeout": return "bg-yellow-100 text-yellow-700";
+    default: return "bg-gray-100 text-gray-600";
   }
 }
 
 onMounted(async () => {
-  // Load eval name from config
   try {
     const cfg = await api.getConfig() as any;
     evalName.value = cfg.name || "评测";
@@ -146,7 +156,6 @@ onMounted(async () => {
   runId.value = s.run_id;
   if (s.progress) progress.value = s.progress as any;
 
-  // Always connect SSE to receive real-time updates
   connectSSE();
 });
 
@@ -160,33 +169,25 @@ function connectSSE() {
         runId.value = data.run_id;
         progress.value = { total: data.total, completed: 0, passed: 0, failed: 0 };
         cases.value = [];
+        currentCase.value = null;
         break;
       case "case.started":
-        currentCaseId.value = data.id;
-        cases.value.push({ id: data.id, name: data.id, status: "running" });
+        currentCase.value = { id: data.id, name: data.id, status: "running" };
         break;
       case "case.completed":
-        currentCaseId.value = null;
+        currentCase.value = null;
         progress.value.completed += 1;
         if (data.status === "passed") progress.value.passed += 1;
         else progress.value.failed += 1;
-        // Update existing case or add new one
-        const idx = cases.value.findIndex((c: any) => c.id === data.id);
-        if (idx >= 0) {
-          cases.value[idx] = data;
-        } else {
-          cases.value.push(data);
-        }
+        cases.value.push(data);
         break;
       case "run.completed":
         status.value = "completed";
-        currentCaseId.value = null;
+        currentCase.value = null;
         break;
       case "run.error":
         status.value = "error";
-        currentCaseId.value = null;
-        break;
-      case "ping":
+        currentCase.value = null;
         break;
     }
   };
@@ -195,6 +196,7 @@ function connectSSE() {
 async function abort() {
   await api.abortRun();
   status.value = "idle";
+  currentCase.value = null;
   eventSource?.close();
 }
 
@@ -213,13 +215,12 @@ onUnmounted(() => {
   animation: spin 0.8s linear infinite;
 }
 .spinner-sm {
-  width: 12px;
-  height: 12px;
-  border: 2px solid #e5e7eb;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #bfdbfe;
   border-top-color: #2563eb;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  display: inline-block;
 }
 @keyframes spin {
   to { transform: rotate(360deg); }

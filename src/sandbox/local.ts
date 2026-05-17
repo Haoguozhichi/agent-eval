@@ -42,6 +42,8 @@ export class LocalSandboxProvider implements SandboxProvider {
       const env = {
         ...process.env,
         ...spec.env,
+        HOME: workdir,
+        XDG_CONFIG_HOME: join(workdir, ".config"),
         OPENCODE_PORT: String(port),
       };
 

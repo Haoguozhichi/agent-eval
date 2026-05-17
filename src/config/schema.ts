@@ -4,7 +4,7 @@ const opencodeConfigSchema = z.object({
   model: z.string().min(1),
   provider: z.record(z.string(), z.unknown()).default({}),
   mcp: z.record(z.string(), z.unknown()).default({}),
-  skills: z.record(z.string(), z.unknown()).default({}),
+  skills: z.array(z.string()).default([]),
   permission: z.record(z.string(), z.unknown()).default({}),
   extra: z.record(z.string(), z.unknown()).optional(),
 });

@@ -5,7 +5,7 @@ import type { LoadedConfig } from "../config/loader.ts";
 import type { SandboxHandle, SandboxProvider } from "../sandbox/types.ts";
 import { runValidators } from "../validator/engine.ts";
 import { createLogger } from "../utils/logger.ts";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, cp, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Timer, nowIso, formatDurationHuman } from "../utils/timer.ts";
 import { withRetry } from "../utils/retry.ts";
@@ -95,6 +95,10 @@ async function runOnce(
     client = new OpenCodeClient({
       baseUrl: `http://${sandbox.host}:${sandbox.port}`,
     });
+
+    // Copy selected skills to sandbox workdir
+    await copySkillsToWorkdir(loaded, sandbox.workdir);
+
     await client.waitReady(caseController.signal, 30_000);
 
     for (const cmd of evalCase.setup_commands) {
@@ -306,9 +310,30 @@ function buildOpencodeConfig(loaded: LoadedConfig): Record<string, unknown> {
     provider: cfg.provider,
     mcp: cfg.mcp,
     permission: cfg.permission,
-    skills: cfg.skills,
     ...(cfg.extra ?? {}),
   };
+}
+
+function getSkillsDir(loaded: LoadedConfig): string {
+  return join(loaded.baseDir, "skills");
+}
+
+async function copySkillsToWorkdir(loaded: LoadedConfig, workdir: string): Promise<void> {
+  const selectedSkills = loaded.config.opencode.skills;
+  if (!selectedSkills || selectedSkills.length === 0) return;
+
+  const skillsSrc = getSkillsDir(loaded);
+  const skillsDest = join(workdir, ".opencode", "skills");
+  await mkdir(skillsDest, { recursive: true });
+
+  for (const skillName of selectedSkills) {
+    const srcFile = join(skillsSrc, `${skillName}.md`);
+    try {
+      await cp(srcFile, join(skillsDest, `${skillName}.md`));
+    } catch (err) {
+      log.warn("skill file not found", { skill: skillName, err: (err as Error).message });
+    }
+  }
 }
 
 function collectEnvFromProvider(loaded: LoadedConfig): Record<string, string> {

@@ -50,6 +50,10 @@ export const api = {
     return res.json();
   },
 
+  // Skills
+  getSkills: () => request<{ name: string; file: string }[]>("/skills"),
+  getSkillContent: (name: string) => request<{ name: string; content: string }>(`/skills/${name}`),
+
   // Health
   health: () => request<{ status: string }>("/health"),
 };
