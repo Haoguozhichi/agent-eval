@@ -44,7 +44,7 @@ function defaultConfig() {
         },
       },
       mcp: {},
-      skills: {},
+      skills: [],
       permission: { bash: { "*": "allow" }, write: { "*": "allow" } },
     },
     execution: { concurrency: 2, case_timeout_ms: 300000, global_timeout_ms: 3600000 },

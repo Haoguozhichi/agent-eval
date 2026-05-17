@@ -307,11 +307,42 @@ function buildMcpConfig(): Record<string, unknown> {
 
 async function saveAll() {
   try {
-    config.value.opencode.provider = JSON.parse(providerJson.value);
-    config.value.opencode.mcp = buildMcpConfig();
-    config.value.opencode.skills = selectedSkills.value;
-    const toSave = { ...config.value };
-    if (!hasJudge.value) delete toSave.judge;
+    // Build the entire config object from scratch - don't rely on reactive proxy
+    const mcpConfig = buildMcpConfig();
+    let providerObj = {};
+    try { providerObj = JSON.parse(providerJson.value); } catch {}
+
+    const toSave: any = {
+      name: config.value.name || "my-eval",
+      description: config.value.description || "",
+      opencode: {
+        model: config.value.opencode?.model || "",
+        provider: providerObj,
+        mcp: mcpConfig,
+        skills: [...selectedSkills.value],
+        permission: config.value.opencode?.permission || { bash: { "*": "allow" }, write: { "*": "allow" } },
+      },
+      execution: {
+        concurrency: config.value.execution?.concurrency || 2,
+        case_timeout_ms: config.value.execution?.case_timeout_ms || 300000,
+        global_timeout_ms: config.value.execution?.global_timeout_ms || 3600000,
+      },
+      dataset: config.value.dataset || "./dataset.json",
+    };
+
+    if (hasJudge.value && config.value.judge?.model) {
+      toSave.judge = {
+        type: config.value.judge.type || "openai_compatible",
+        model: config.value.judge.model,
+        base_url: config.value.judge.base_url || "",
+        api_key: config.value.judge.api_key || "",
+        scoring: config.value.judge.scoring || { scale: 10, pass_threshold: 6, dimensions: [] },
+      };
+    }
+
+    console.log("[saveAll] mcp:", JSON.stringify(mcpConfig));
+    console.log("[saveAll] full payload:", JSON.stringify(toSave).slice(0, 500));
+
     await api.saveConfig(toSave);
 
     const parsed = JSON.parse(datasetJson.value);
