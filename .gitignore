@@ -1,5 +1,4 @@
 node_modules/
-dist/
 results/
 *.log
 .env
@@ -8,4 +7,4 @@ results/
 bun.lockb
 coverage/
 .idea/
-examples/my-eval/
+data/
