@@ -2,13 +2,13 @@
   <div class="max-w-4xl mx-auto space-y-6">
     <h2 class="text-xl font-bold">评测运行</h2>
 
-    <div v-if="status === 'idle' && cases.length === 0" class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+    <div v-if="status === 'idle' && completedCases.length === 0" class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
       <p>当前没有正在运行的评测</p>
       <router-link to="/config" class="text-blue-600 text-sm hover:underline">去配置页面启动评测</router-link>
     </div>
 
     <div v-else class="space-y-4">
-      <!-- Header: eval name + spinner + status -->
+      <!-- Header -->
       <div class="bg-white rounded-lg shadow p-5">
         <div class="flex items-center gap-3 mb-3">
           <div v-if="status === 'running'" class="spinner"></div>
@@ -31,17 +31,16 @@
       </div>
 
       <!-- Currently running case -->
-      <div v-if="currentCase" class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
+      <div v-if="currentCaseId" class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-3">
         <div class="spinner-sm"></div>
         <div>
-          <div class="text-sm font-medium text-blue-800">正在评测: {{ currentCase.name || currentCase.id }}</div>
-          <div class="text-xs text-blue-600">{{ currentCase.id }}</div>
+          <div class="text-sm font-medium text-blue-800">正在评测: {{ currentCaseId }}</div>
         </div>
       </div>
 
       <!-- Completed cases -->
       <div v-if="completedCases.length > 0" class="space-y-3">
-        <h3 class="text-sm font-medium text-gray-600">已完成用例</h3>
+        <h3 class="text-sm font-medium text-gray-600">已完成用例 ({{ completedCases.length }})</h3>
         <div v-for="c in completedCases" :key="c.id" :class="['border rounded-lg p-4', caseCardClass(c.status)]">
           <div class="flex items-center justify-between">
             <div>
@@ -79,11 +78,9 @@ const status = ref<string>("idle");
 const runId = ref<string | null>(null);
 const evalName = ref("");
 const progress = ref({ total: 0, completed: 0, passed: 0, failed: 0 });
-const cases = ref<any[]>([]);
-const currentCase = ref<any>(null);
+const completedCases = ref<any[]>([]);
+const currentCaseId = ref<string | null>(null);
 let eventSource: EventSource | null = null;
-
-const completedCases = computed(() => cases.value.filter((c) => c.status !== "running"));
 
 const progressPercent = computed(() =>
   progress.value.total > 0 ? (progress.value.completed / progress.value.total) * 100 : 0
@@ -92,7 +89,7 @@ const progressPercent = computed(() =>
 const currentCaseLabel = computed(() => {
   if (status.value === "completed") return `已完成全部 ${progress.value.total} 个用例`;
   if (status.value === "error") return "评测出错";
-  if (currentCase.value) return `正在评测第 ${progress.value.completed + 1}/${progress.value.total} 个用例`;
+  if (currentCaseId.value) return `正在评测第 ${progress.value.completed + 1}/${progress.value.total} 个用例`;
   if (progress.value.total > 0) return `共 ${progress.value.total} 个用例`;
   return "准备中...";
 });
@@ -116,33 +113,13 @@ const statusBadgeClass = computed(() => {
 });
 
 function statusIcon(s: string) {
-  switch (s) {
-    case "passed": return "✅";
-    case "failed": return "❌";
-    case "errored": return "💥";
-    case "timeout": return "⌛";
-    default: return "⏭";
-  }
+  switch (s) { case "passed": return "✅"; case "failed": return "❌"; case "errored": return "💥"; case "timeout": return "⌛"; default: return "⏭"; }
 }
-
 function caseCardClass(s: string) {
-  switch (s) {
-    case "passed": return "border-green-200 bg-green-50";
-    case "failed": return "border-red-200 bg-red-50";
-    case "errored": return "border-orange-200 bg-orange-50";
-    case "timeout": return "border-yellow-200 bg-yellow-50";
-    default: return "border-gray-200 bg-gray-50";
-  }
+  switch (s) { case "passed": return "border-green-200 bg-green-50"; case "failed": return "border-red-200 bg-red-50"; case "errored": return "border-orange-200 bg-orange-50"; case "timeout": return "border-yellow-200 bg-yellow-50"; default: return "border-gray-200 bg-gray-50"; }
 }
-
 function caseStatusClass(s: string) {
-  switch (s) {
-    case "passed": return "bg-green-100 text-green-700";
-    case "failed": return "bg-red-100 text-red-700";
-    case "errored": return "bg-orange-100 text-orange-700";
-    case "timeout": return "bg-yellow-100 text-yellow-700";
-    default: return "bg-gray-100 text-gray-600";
-  }
+  switch (s) { case "passed": return "bg-green-100 text-green-700"; case "failed": return "bg-red-100 text-red-700"; case "errored": return "bg-orange-100 text-orange-700"; case "timeout": return "bg-yellow-100 text-yellow-700"; default: return "bg-gray-100 text-gray-600"; }
 }
 
 onMounted(async () => {
@@ -151,11 +128,17 @@ onMounted(async () => {
     evalName.value = cfg.name || "评测";
   } catch {}
 
-  const s = await api.getRunStatus();
+  // Restore full state from backend (including completed cases)
+  const s = await api.getRunStatus() as any;
   status.value = s.status;
   runId.value = s.run_id;
-  if (s.progress) progress.value = s.progress as any;
+  currentCaseId.value = s.current_case ?? null;
+  if (s.progress) progress.value = s.progress;
+  if (s.cases && Array.isArray(s.cases)) {
+    completedCases.value = s.cases;
+  }
 
+  // Connect SSE for real-time updates
   connectSSE();
 });
 
@@ -168,26 +151,26 @@ function connectSSE() {
         status.value = "running";
         runId.value = data.run_id;
         progress.value = { total: data.total, completed: 0, passed: 0, failed: 0 };
-        cases.value = [];
-        currentCase.value = null;
+        completedCases.value = [];
+        currentCaseId.value = null;
         break;
       case "case.started":
-        currentCase.value = { id: data.id, name: data.id, status: "running" };
+        currentCaseId.value = data.id;
         break;
       case "case.completed":
-        currentCase.value = null;
+        currentCaseId.value = null;
         progress.value.completed += 1;
         if (data.status === "passed") progress.value.passed += 1;
         else progress.value.failed += 1;
-        cases.value.push(data);
+        completedCases.value.push(data);
         break;
       case "run.completed":
         status.value = "completed";
-        currentCase.value = null;
+        currentCaseId.value = null;
         break;
       case "run.error":
         status.value = "error";
-        currentCase.value = null;
+        currentCaseId.value = null;
         break;
     }
   };
@@ -196,7 +179,7 @@ function connectSSE() {
 async function abort() {
   await api.abortRun();
   status.value = "idle";
-  currentCase.value = null;
+  currentCaseId.value = null;
   eventSource?.close();
 }
 
@@ -206,23 +189,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-.spinner-sm {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #bfdbfe;
-  border-top-color: #2563eb;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+.spinner { width: 20px; height: 20px; border: 3px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; }
+.spinner-sm { width: 14px; height: 14px; border: 2px solid #bfdbfe; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

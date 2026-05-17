@@ -10,7 +10,7 @@ export const resultsRoutes = new Hono();
 resultsRoutes.get("/", async (c) => {
   try {
     const entries = await readdir(RESULTS_DIR);
-    const runs: { id: string; timestamp: string; summary?: unknown }[] = [];
+    const runs: { id: string; timestamp: string; status: string; summary?: unknown }[] = [];
 
     for (const entry of entries) {
       const dir = join(RESULTS_DIR, entry);
@@ -24,10 +24,18 @@ resultsRoutes.get("/", async (c) => {
         runs.push({
           id: entry,
           timestamp: data.metadata?.timestamp ?? entry,
+          status: "completed",
           summary: data.summary,
         });
       } catch {
-        runs.push({ id: entry, timestamp: entry });
+        // No results.json yet — run might be in progress or failed to write
+        const casesDir = join(dir, "cases");
+        const hasCases = await stat(casesDir).then(() => true).catch(() => false);
+        runs.push({
+          id: entry,
+          timestamp: entry,
+          status: hasCases ? "incomplete" : "empty",
+        });
       }
     }
 

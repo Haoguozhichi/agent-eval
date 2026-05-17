@@ -8,6 +8,7 @@ import { evaluationRoutes } from "./routes/evaluation.ts";
 import { resultsRoutes } from "./routes/results.ts";
 import { filesRoutes } from "./routes/files.ts";
 import { skillsRoutes } from "./routes/skills.ts";
+import { mcpRoutes } from "./routes/mcp.ts";
 
 const app = new Hono();
 
@@ -21,6 +22,7 @@ app.route("/api/run", evaluationRoutes);
 app.route("/api/results", resultsRoutes);
 app.route("/api/files", filesRoutes);
 app.route("/api/skills", skillsRoutes);
+app.route("/api/mcp", mcpRoutes);
 
 // Health check
 app.get("/api/health", (c) => c.json({ status: "ok" }));

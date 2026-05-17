@@ -11,6 +11,7 @@
         <thead class="bg-gray-50">
           <tr>
             <th class="px-4 py-2 text-left">时间</th>
+            <th class="px-4 py-2 text-left">状态</th>
             <th class="px-4 py-2 text-right">通过率</th>
             <th class="px-4 py-2 text-right">用例数</th>
             <th class="px-4 py-2 text-right">总 Token</th>
@@ -19,12 +20,16 @@
         </thead>
         <tbody>
           <tr v-for="run in runs" :key="run.id" class="border-t hover:bg-gray-50">
-            <td class="px-4 py-2">{{ run.timestamp }}</td>
+            <td class="px-4 py-2 font-mono text-xs">{{ run.id }}</td>
+            <td class="px-4 py-2">
+              <span :class="['text-xs px-1.5 py-0.5 rounded', runStatusClass(run.status)]">{{ runStatusText(run.status) }}</span>
+            </td>
             <td class="px-4 py-2 text-right">{{ formatRate(run.summary?.pass_rate) }}</td>
             <td class="px-4 py-2 text-right">{{ run.summary?.total ?? "—" }}</td>
             <td class="px-4 py-2 text-right">{{ run.summary?.total_tokens?.total ?? "—" }}</td>
             <td class="px-4 py-2 text-right">
-              <router-link :to="`/results/${run.id}`" class="text-blue-600 hover:underline">详情</router-link>
+              <router-link v-if="run.status === 'completed'" :to="`/results/${run.id}`" class="text-blue-600 hover:underline">详情</router-link>
+              <span v-else class="text-gray-400 text-xs">{{ run.status === 'incomplete' ? '未完成' : '—' }}</span>
             </td>
           </tr>
         </tbody>
@@ -50,5 +55,21 @@ onMounted(async () => {
 function formatRate(rate?: number) {
   if (rate === undefined || rate === null) return "—";
   return (rate * 100).toFixed(1) + "%";
+}
+
+function runStatusClass(status: string) {
+  switch (status) {
+    case "completed": return "bg-green-100 text-green-700";
+    case "incomplete": return "bg-yellow-100 text-yellow-700";
+    default: return "bg-gray-100 text-gray-600";
+  }
+}
+
+function runStatusText(status: string) {
+  switch (status) {
+    case "completed": return "已完成";
+    case "incomplete": return "未完成";
+    default: return "空";
+  }
 }
 </script>

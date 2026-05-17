@@ -35,8 +35,10 @@ evaluationRoutes.get("/status", (c) => {
   return c.json({
     status: state.status,
     run_id: state.currentRunId,
+    current_case: state.currentCaseId,
     error: state.error,
     progress: state.progress,
+    cases: state.completedCases,
   });
 });
 
@@ -95,12 +97,23 @@ async function runEval(runId: string, signal: AbortSignal): Promise<void> {
 
     const result = await runEvaluation(loaded, parsed, {
       onCaseStart: (caseId, index) => {
+        state.currentCaseId = caseId;
         sseBus.send("case.started", { id: caseId, index });
       },
       onCaseComplete: (caseResult, index) => {
+        state.currentCaseId = null;
         state.progress.completed += 1;
         if (caseResult.status === "passed") state.progress.passed += 1;
         else if (caseResult.status !== "skipped") state.progress.failed += 1;
+
+        state.completedCases.push({
+          id: caseResult.id,
+          name: caseResult.name,
+          status: caseResult.status,
+          duration: caseResult.duration,
+          tokens: caseResult.metrics.tokens.total,
+          tool_calls: caseResult.metrics.tool_calls.total,
+        });
 
         sseBus.send("case.completed", {
           id: caseResult.id,

@@ -327,11 +327,12 @@ async function copySkillsToWorkdir(loaded: LoadedConfig, workdir: string): Promi
   await mkdir(skillsDest, { recursive: true });
 
   for (const skillName of selectedSkills) {
-    const srcFile = join(skillsSrc, `${skillName}.md`);
+    const srcDir = join(skillsSrc, skillName);
+    const destDir = join(skillsDest, skillName);
     try {
-      await cp(srcFile, join(skillsDest, `${skillName}.md`));
+      await cp(srcDir, destDir, { recursive: true });
     } catch (err) {
-      log.warn("skill file not found", { skill: skillName, err: (err as Error).message });
+      log.warn("skill directory not found", { skill: skillName, err: (err as Error).message });
     }
   }
 }

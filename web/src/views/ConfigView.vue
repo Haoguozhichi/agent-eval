@@ -54,6 +54,9 @@
                   <option value="url">远程 URL</option>
                   <option value="command">本地命令</option>
                 </select>
+                <button @click="testMcpServer(server)" :disabled="server.testing" class="text-xs px-2 py-1 border rounded hover:bg-gray-50 disabled:opacity-50">
+                  {{ server.testing ? '测试中...' : '测试连接' }}
+                </button>
                 <button @click="mcpServers.splice(i, 1)" class="text-red-400 hover:text-red-600 text-lg">&times;</button>
               </div>
               <div v-if="server.type === 'url'">
@@ -62,6 +65,9 @@
               <div v-else class="space-y-2">
                 <input v-model="server.command" class="input text-xs" placeholder="命令 (如 npx)" />
                 <input v-model="server.args" class="input text-xs" placeholder="参数 (逗号分隔，如 -y, @modelcontextprotocol/server-filesystem, /tmp)" />
+              </div>
+              <div v-if="server.testResult" :class="['text-xs px-2 py-1 rounded', server.testResult.status === 'ok' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700']">
+                {{ server.testResult.status === 'ok' ? '✓' : '✗' }} {{ server.testResult.message }} ({{ server.testResult.latency_ms }}ms)
               </div>
             </div>
             <button @click="addMcpServer" class="text-xs text-blue-600 hover:underline">+ 添加 MCP 服务器</button>
@@ -75,7 +81,7 @@
         <!-- Skills -->
         <div class="bg-white rounded-lg shadow p-5 space-y-3">
           <h3 class="font-semibold text-gray-700">Skills</h3>
-          <p class="text-xs text-gray-500">选择要加载的 Skill（放在 data/skills/ 目录下的 .md 文件）</p>
+          <p class="text-xs text-gray-500">选择要加载的 Skill（data/skills/ 下的子目录）</p>
           <div v-if="availableSkills.length === 0" class="text-xs text-gray-400">暂无可用 Skill</div>
           <div v-else class="space-y-1">
             <label v-for="skill in availableSkills" :key="skill.name" class="flex items-center gap-2 text-sm">
@@ -232,6 +238,8 @@ onMounted(async () => {
       url: cfg.url ?? "",
       command: cfg.command ?? "",
       args: (cfg.args ?? []).join(", "),
+      testing: false,
+      testResult: null,
     }));
     mcpJson.value = JSON.stringify(mcp, null, 2);
   } catch {}
@@ -249,7 +257,25 @@ onMounted(async () => {
 });
 
 function addMcpServer() {
-  mcpServers.value.push({ name: "", type: "url", url: "", command: "", args: "" });
+  mcpServers.value.push({ name: "", type: "url", url: "", command: "", args: "", testing: false, testResult: null });
+}
+
+async function testMcpServer(server: any) {
+  server.testing = true;
+  server.testResult = null;
+  try {
+    const payload: any = { name: server.name };
+    if (server.type === "url") {
+      payload.url = server.url;
+    } else {
+      payload.command = server.command;
+      payload.args = server.args ? server.args.split(",").map((a: string) => a.trim()).filter(Boolean) : [];
+    }
+    server.testResult = await api.testMcp(payload);
+  } catch (err) {
+    server.testResult = { status: "error", message: (err as Error).message, latency_ms: 0 };
+  }
+  server.testing = false;
 }
 
 function addDimension() {

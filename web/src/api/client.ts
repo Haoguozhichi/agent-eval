@@ -51,8 +51,12 @@ export const api = {
   },
 
   // Skills
-  getSkills: () => request<{ name: string; file: string }[]>("/skills"),
-  getSkillContent: (name: string) => request<{ name: string; content: string }>(`/skills/${name}`),
+  getSkills: () => request<{ name: string; hasMain: boolean }[]>("/skills"),
+  getSkillContent: (name: string) => request<{ name: string; files: string[]; mainContent: string }>(`/skills/${name}`),
+
+  // MCP
+  testMcp: (data: { name: string; url?: string; command?: string; args?: string[] }) =>
+    request<{ status: string; message: string; latency_ms: number }>("/mcp/test", { method: "POST", body: JSON.stringify(data) }),
 
   // Health
   health: () => request<{ status: string }>("/health"),
