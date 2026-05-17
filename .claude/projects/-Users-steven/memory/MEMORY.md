@@ -1,0 +1,2 @@
+- [agent-eval project](agent-eval-project.md) — e2e eval framework for opencode; Bun/TS, Docker/local sandbox, OpenAI-compatible judge
+- [Local LLM setup](user-local-llm-setup.md) — User runs LM Studio on localhost:1234 with qwen models, prefers OpenAI-compatible APIs
