@@ -8,7 +8,7 @@ export interface LoadedConfig {
   configPath: string;
   baseDir: string;
   datasetPath: string;
-  workspacePath: string | null;
+  workspacePath: string;
   outputDir: string;
 }
 
@@ -39,10 +39,8 @@ export async function loadConfig(configPath: string): Promise<LoadedConfig> {
 
   const baseDir = dirname(absConfigPath);
   const datasetPath = resolveRelative(config.dataset, baseDir);
-  const workspacePath = config.workspace
-    ? resolveRelative(config.workspace, baseDir)
-    : null;
-  const outputDir = resolveRelative(config.output_dir, baseDir);
+  const workspacePath = resolve(baseDir, "workspace");
+  const outputDir = resolve(process.cwd(), "results");
 
   return { config, configPath: absConfigPath, baseDir, datasetPath, workspacePath, outputDir };
 }

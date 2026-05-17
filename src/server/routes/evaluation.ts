@@ -80,11 +80,9 @@ async function runEval(runId: string, signal: AbortSignal): Promise<void> {
     const loaded = await loadConfig(configPath);
 
     // In local (non-Docker) mode, replace host.docker.internal with 127.0.0.1
-    if (loaded.config.sandbox.mode === "local") {
-      const configStr = JSON.stringify(loaded.config);
-      const fixed = configStr.replace(/host\.docker\.internal/g, "127.0.0.1");
-      Object.assign(loaded.config, JSON.parse(fixed));
-    }
+    const configStr = JSON.stringify(loaded.config);
+    const fixed = configStr.replace(/host\.docker\.internal/g, "127.0.0.1");
+    Object.assign(loaded.config, JSON.parse(fixed));
 
     // Override output dir to include run ID
     const outputDir = join(RESULTS_DIR, runId);

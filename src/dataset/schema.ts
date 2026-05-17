@@ -59,7 +59,6 @@ const llmJudgeValidatorSchema = validatorBaseSchema.extend({
   type: z.literal("llm_judge"),
   criteria: z.array(z.string()).default([]),
   rubric: z.string().optional(),
-  pass_threshold: z.number().min(0).max(10).default(6),
 });
 
 export const validatorSchema = z.discriminatedUnion("type", [
@@ -72,18 +71,7 @@ export const validatorSchema = z.discriminatedUnion("type", [
   llmJudgeValidatorSchema,
 ]);
 
-const scoringDimensionSchema = z.object({
-  name: z.string().min(1),
-  weight: z.number().min(0).default(1),
-  description: z.string().optional(),
-});
-
-const scoringConfigSchema = z.object({
-  dimensions: z.array(scoringDimensionSchema).min(1),
-  scale: z.number().int().positive().default(10),
-});
-
-const baseCaseSchema = z.object({
+const evalCaseBaseSchema = z.object({
   id: z.string().min(1),
   name: z.string().optional(),
   description: z.string().optional(),
@@ -97,22 +85,7 @@ const baseCaseSchema = z.object({
   teardown_commands: z.array(z.string()).default([]),
 });
 
-const passFailCaseSchema = baseCaseSchema.extend({
-  type: z.literal("pass_fail").default("pass_fail"),
-});
-
-const scoringCaseSchema = baseCaseSchema.extend({
-  type: z.literal("scoring"),
-  scoring: scoringConfigSchema,
-});
-
-export const evalCaseSchema = z.preprocess((value) => {
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const v = value as Record<string, unknown>;
-    if (v.type === undefined) return { ...v, type: "pass_fail" };
-  }
-  return value;
-}, z.discriminatedUnion("type", [passFailCaseSchema, scoringCaseSchema]));
+export const evalCaseSchema = evalCaseBaseSchema;
 
 export const datasetSchema = z.object({
   version: z.string().default("1"),
@@ -122,9 +95,5 @@ export const datasetSchema = z.object({
 });
 
 export type Validator = z.infer<typeof validatorSchema>;
-export type ScoringConfig = z.infer<typeof scoringConfigSchema>;
-export type ScoringDimension = z.infer<typeof scoringDimensionSchema>;
 export type EvalCase = z.infer<typeof evalCaseSchema>;
-export type PassFailCase = z.infer<typeof passFailCaseSchema>;
-export type ScoringCase = z.infer<typeof scoringCaseSchema>;
 export type Dataset = z.infer<typeof datasetSchema>;

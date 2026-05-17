@@ -98,7 +98,6 @@ export function buildCli(): Command {
 
 async function runCommand(options: RunOptions): Promise<void> {
   const loaded = await loadConfig(options.config);
-  if (options.local) loaded.config.sandbox.mode = "local";
   if (options.concurrency) {
     const c = Number(options.concurrency);
     if (!Number.isFinite(c) || c <= 0) throw new Error(`invalid concurrency: ${options.concurrency}`);

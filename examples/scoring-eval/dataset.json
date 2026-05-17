@@ -14,8 +14,8 @@
           "criteria": ["correctness", "clarity", "completeness"],
           "pass_threshold": 6,
           "weight": 1
-        }
-      ],
+          }
+        ],
       "scoring": {
         "scale": 10,
         "dimensions": [

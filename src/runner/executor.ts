@@ -227,7 +227,6 @@ function finalize(args: FinalizeArgs): CaseResult {
   return {
     id: args.evalCase.id,
     name: args.evalCase.name ?? args.evalCase.id,
-    type: args.evalCase.type,
     status: args.status,
     score: args.score,
     duration_ms: args.durationMs,
@@ -246,7 +245,6 @@ function errorResult(evalCase: EvalCase, message: string, attempt: number): Case
   return {
     id: evalCase.id,
     name: evalCase.name ?? evalCase.id,
-    type: evalCase.type,
     status: "errored",
     duration_ms: 0,
     duration: "0ms",
@@ -261,9 +259,6 @@ function errorResult(evalCase: EvalCase, message: string, attempt: number): Case
 }
 
 function decideStatus(evalCase: EvalCase, results: ValidatorResult[]): CaseStatus {
-  if (evalCase.type === "scoring") {
-    return results.every((r) => r.passed || r.score !== undefined) ? "passed" : "failed";
-  }
   if (results.length === 0) return "passed";
   return results.every((r) => r.passed) ? "passed" : "failed";
 }

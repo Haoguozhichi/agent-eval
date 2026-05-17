@@ -18,7 +18,6 @@ export interface ValidatorResult {
 export interface CaseResult {
   id: string;
   name: string;
-  type: EvalCase["type"];
   status: CaseStatus;
   score?: number;
   duration_ms: number;
@@ -55,7 +54,6 @@ export interface RunMetadata {
   config: {
     model: string;
     concurrency: number;
-    sandbox_mode: "docker" | "local";
     judge_model?: string;
   };
   agent_eval_version: string;
@@ -71,7 +69,7 @@ export interface ExecutionContext {
   config: EvalConfig;
   baseDir: string;
   outputDir: string;
-  workspacePath: string | null;
+  workspacePath: string;
   case: EvalCase;
   caseIndex: number;
   totalCases: number;

@@ -3,9 +3,10 @@ export { evalConfigSchema } from "./config/schema.ts";
 export type {
   EvalConfig,
   OpenCodeConfig,
-  SandboxConfig,
   ExecutionConfig,
   JudgeConfig,
+  ScoringConfig,
+  ScoringDimension,
 } from "./config/types.ts";
 
 export { loadDataset } from "./dataset/parser.ts";
@@ -13,11 +14,7 @@ export { datasetSchema, evalCaseSchema, validatorSchema } from "./dataset/schema
 export type {
   Dataset,
   EvalCase,
-  PassFailCase,
-  ScoringCase,
   Validator,
-  ScoringConfig,
-  ScoringDimension,
 } from "./dataset/types.ts";
 
 export type {

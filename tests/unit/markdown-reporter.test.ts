@@ -8,7 +8,7 @@ const baseResult: RunResult = {
     timestamp: "2026-05-16T00:00:00Z",
     duration_ms: 12345,
     duration: "12s 345ms",
-    config: { model: "anthropic/claude-sonnet-4-5", concurrency: 2, sandbox_mode: "local" },
+    config: { model: "anthropic/claude-sonnet-4-5", concurrency: 2 },
     agent_eval_version: "0.1.0",
   },
   summary: {
@@ -28,7 +28,6 @@ const baseResult: RunResult = {
     {
       id: "tc-001",
       name: "case one",
-      type: "pass_fail",
       status: "passed",
       duration_ms: 12000,
       duration: "12s",

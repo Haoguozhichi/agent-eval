@@ -47,10 +47,7 @@ function defaultConfig() {
       skills: {},
       permission: { bash: { "*": "allow" }, write: { "*": "allow" } },
     },
-    sandbox: { mode: "local", timeout_ms: 300000 },
     execution: { concurrency: 2, case_timeout_ms: 300000, global_timeout_ms: 3600000 },
     dataset: "./dataset.json",
-    workspace: "./workspace",
-    output_dir: "./results",
   };
 }

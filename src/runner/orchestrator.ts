@@ -51,7 +51,6 @@ export async function runEvaluation(
     name: loaded.config.name,
     cases: parsed.dataset.cases.length,
     concurrency: loaded.config.execution.concurrency,
-    sandbox: loaded.config.sandbox.mode,
   });
 
   const tasks = parsed.dataset.cases.map((c, idx) =>
@@ -82,7 +81,6 @@ export async function runEvaluation(
         : {
             id: parsed.dataset.cases[idx]!.id,
             name: parsed.dataset.cases[idx]!.name ?? parsed.dataset.cases[idx]!.id,
-            type: parsed.dataset.cases[idx]!.type,
             status: "errored" as const,
             duration_ms: 0,
             duration: "0ms",
@@ -155,7 +153,6 @@ function assembleResult(
       config: {
         model: loaded.config.opencode.model,
         concurrency: loaded.config.execution.concurrency,
-        sandbox_mode: loaded.config.sandbox.mode,
         judge_model: loaded.config.judge?.model,
       },
       agent_eval_version: "0.1.0",

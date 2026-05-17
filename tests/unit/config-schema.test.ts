@@ -9,8 +9,7 @@ describe("evalConfigSchema", () => {
       dataset: "./dataset.json",
     });
     expect(cfg.execution.concurrency).toBe(4);
-    expect(cfg.sandbox.mode).toBe("docker");
-    expect(cfg.output_dir).toBe("./results");
+    expect(cfg.dataset).toBe("./dataset.json");
   });
 
   it("rejects empty model", () => {

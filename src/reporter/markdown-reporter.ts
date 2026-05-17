@@ -26,7 +26,6 @@ export function renderMarkdown(result: RunResult): string {
   lines.push(`- 时间: ${m.timestamp}`);
   lines.push(`- 总耗时: ${m.duration}`);
   lines.push(`- 模型: \`${m.config.model}\``);
-  lines.push(`- 沙箱: \`${m.config.sandbox_mode}\``);
   lines.push(`- 并发数: ${m.config.concurrency}`);
   if (m.config.judge_model) lines.push(`- 裁判模型: \`${m.config.judge_model}\``);
   lines.push(`- agent-eval: v${m.agent_eval_version}`);

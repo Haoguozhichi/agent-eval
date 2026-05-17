@@ -2,18 +2,16 @@ import { describe, expect, it } from "vitest";
 import { datasetSchema } from "../../src/dataset/schema.ts";
 
 describe("datasetSchema", () => {
-  it("parses pass/fail case with default type", () => {
+  it("parses a basic case", () => {
     const ds = datasetSchema.parse({
       cases: [{ id: "a", prompt: "do thing", validators: [{ type: "file_exists", path: "x" }] }],
     });
-    expect(ds.cases[0]?.type).toBe("pass_fail");
+    expect(ds.cases[0]?.id).toBe("a");
   });
 
-  it("requires scoring config for scoring case", () => {
+  it("requires at least one case", () => {
     expect(() =>
-      datasetSchema.parse({
-        cases: [{ id: "a", type: "scoring", prompt: "do thing" }],
-      }),
+      datasetSchema.parse({ cases: [] }),
     ).toThrow();
   });
 

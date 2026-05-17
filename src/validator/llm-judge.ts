@@ -29,7 +29,7 @@ export const llmJudgeRunner: ValidatorRunner<LlmJudgeSpec> = {
       rubric: spec.rubric ?? judge.rubric,
       criteria: spec.criteria,
       agentText: ctx.agentRun.text,
-      scoring: ctx.evalCase.type === "scoring" ? ctx.evalCase.scoring : undefined,
+      scoring: judge.scoring,
     });
 
     let response;
@@ -59,8 +59,10 @@ export const llmJudgeRunner: ValidatorRunner<LlmJudgeSpec> = {
       };
     }
 
-    const score = clamp(parsed.score, 0, 10);
-    const passed = score >= spec.pass_threshold;
+    const scale = judge.scoring?.scale ?? 10;
+    const passThreshold = judge.scoring?.pass_threshold ?? 6;
+    const score = clamp(parsed.score, 0, scale);
+    const passed = score >= passThreshold;
     return {
       passed,
       score,
@@ -83,7 +85,7 @@ interface PromptArgs {
   rubric?: string;
   criteria: string[];
   agentText: string;
-  scoring?: { dimensions: { name: string; weight: number; description?: string }[]; scale: number };
+  scoring?: { dimensions: { name: string; weight: number; description?: string }[]; scale: number; pass_threshold: number };
 }
 
 function buildPrompt(args: PromptArgs): string {

@@ -41,7 +41,6 @@ export class LocalSandboxProvider implements SandboxProvider {
 
       const env = {
         ...process.env,
-        ...this.config.sandbox.env,
         ...spec.env,
         OPENCODE_PORT: String(port),
       };

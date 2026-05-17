@@ -70,7 +70,9 @@ export async function runValidators(ctx: ValidatorContext): Promise<ValidationOu
     }
   }
 
-  if (ctx.evalCase.type === "scoring") {
+  // If judge is enabled and has scoring dimensions, aggregate scores
+  const hasScoring = ctx.loaded.config.judge?.scoring;
+  if (hasScoring) {
     const aggregate = aggregateScore(results);
     return { results, aggregateScore: aggregate };
   }

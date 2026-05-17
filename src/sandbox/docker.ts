@@ -45,12 +45,12 @@ export class DockerSandboxProvider implements SandboxProvider {
         "utf-8",
       );
 
-      const envArr = Object.entries({ ...this.config.sandbox.env, ...spec.env }).map(
+      const envArr = Object.entries({ ...spec.env }).map(
         ([k, v]) => `${k}=${v}`,
       );
 
       container = await this.docker.createContainer({
-        Image: this.config.sandbox.image,
+        Image: "agent-eval/opencode:latest",
         name: `agent-eval-${spec.caseId}-${port}`,
         Cmd: ["opencode", "serve", "--port", String(port), "--hostname", "0.0.0.0"],
         WorkingDir: "/workspace",
@@ -59,9 +59,9 @@ export class DockerSandboxProvider implements SandboxProvider {
         ExposedPorts: { [`${port}/tcp`]: {} },
         HostConfig: {
           AutoRemove: false,
-          Memory: parseMemory(this.config.sandbox.memory_limit),
-          NanoCpus: Math.round(parseFloat(this.config.sandbox.cpu_limit) * 1e9),
-          NetworkMode: this.config.sandbox.network,
+          Memory: 2 * 1024 ** 3,
+          NanoCpus: 2 * 1e9,
+          NetworkMode: "bridge",
           PortBindings: { [`${port}/tcp`]: [{ HostPort: String(port) }] },
         },
       });

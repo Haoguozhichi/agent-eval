@@ -30,38 +30,65 @@
 
           <div class="grid grid-cols-2 gap-3">
             <label class="block">
-              <span class="text-sm text-gray-600">沙箱模式</span>
-              <select v-model="config.sandbox.mode" class="input">
-                <option value="local">local</option>
-                <option value="docker">docker</option>
-              </select>
-            </label>
-            <label class="block">
               <span class="text-sm text-gray-600">并发数</span>
               <input v-model.number="config.execution.concurrency" type="number" min="1" class="input" />
             </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
             <label class="block">
               <span class="text-sm text-gray-600">用例超时 (ms)</span>
               <input v-model.number="config.execution.case_timeout_ms" type="number" class="input" />
             </label>
-            <label class="block">
-              <span class="text-sm text-gray-600">全局超时 (ms)</span>
-              <input v-model.number="config.execution.global_timeout_ms" type="number" class="input" />
-            </label>
           </div>
 
-          <div class="border rounded p-3 space-y-2">
+          <label class="block">
+            <span class="text-sm text-gray-600">全局超时 (ms)</span>
+            <input v-model.number="config.execution.global_timeout_ms" type="number" class="input" />
+          </label>
+
+          <!-- Judge Section -->
+          <div class="border rounded p-3 space-y-3">
             <label class="flex items-center gap-2">
               <input type="checkbox" v-model="hasJudge" />
               <span class="text-sm font-medium text-gray-600">启用 LLM 裁判</span>
             </label>
             <template v-if="hasJudge">
-              <input v-model="config.judge.model" class="input" placeholder="裁判模型名" />
-              <input v-model="config.judge.base_url" class="input" placeholder="http://127.0.0.1:1234/v1" />
-              <input v-model="config.judge.api_key" class="input" placeholder="API Key" />
+              <div class="grid grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="text-xs text-gray-500">裁判模型</span>
+                  <input v-model="config.judge.model" class="input" placeholder="qwen3.5-9b" />
+                </label>
+                <label class="block">
+                  <span class="text-xs text-gray-500">API 地址</span>
+                  <input v-model="config.judge.base_url" class="input" placeholder="http://127.0.0.1:1234/v1" />
+                </label>
+              </div>
+              <label class="block">
+                <span class="text-xs text-gray-500">API Key</span>
+                <input v-model="config.judge.api_key" class="input" placeholder="empty" />
+              </label>
+
+              <!-- Scoring Dimensions -->
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-gray-600">评分维度</span>
+                  <div class="flex items-center gap-3">
+                    <label class="text-xs text-gray-500">
+                      量表: <input v-model.number="config.judge.scoring.scale" type="number" min="1" class="w-12 border rounded px-1 text-center" />
+                    </label>
+                    <label class="text-xs text-gray-500">
+                      通过阈值: <input v-model.number="config.judge.scoring.pass_threshold" type="number" min="0" class="w-12 border rounded px-1 text-center" />
+                    </label>
+                  </div>
+                </div>
+                <div class="space-y-1">
+                  <div v-for="(dim, i) in config.judge.scoring.dimensions" :key="i" class="flex items-center gap-2">
+                    <input v-model="dim.name" class="input flex-1 text-xs" placeholder="名称" />
+                    <input v-model.number="dim.weight" type="number" step="0.1" min="0" class="input w-16 text-xs" placeholder="权重" />
+                    <input v-model="dim.description" class="input flex-[2] text-xs" placeholder="描述" />
+                    <button @click="removeDimension(i)" class="text-red-400 hover:text-red-600 text-sm">✕</button>
+                  </div>
+                </div>
+                <button @click="addDimension" class="text-xs text-blue-600 hover:underline">+ 添加维度</button>
+              </div>
             </template>
           </div>
         </div>
@@ -111,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { api } from "@/api/client";
 
@@ -121,12 +148,15 @@ const config = ref<any>({
   name: "",
   description: "",
   opencode: { model: "", provider: {}, mcp: {}, skills: {}, permission: {} },
-  sandbox: { mode: "local", timeout_ms: 300000 },
   execution: { concurrency: 2, case_timeout_ms: 300000, global_timeout_ms: 3600000 },
-  judge: { type: "openai_compatible", model: "", base_url: "", api_key: "" },
+  judge: {
+    type: "openai_compatible",
+    model: "",
+    base_url: "",
+    api_key: "",
+    scoring: { scale: 10, pass_threshold: 6, dimensions: [] },
+  },
   dataset: "./dataset.json",
-  workspace: "./workspace",
-  output_dir: "./results",
 });
 
 const hasJudge = ref(false);
@@ -142,9 +172,15 @@ onMounted(async () => {
   try {
     const cfg = await api.getConfig();
     Object.assign(config.value, cfg);
-    hasJudge.value = !!cfg.judge;
+    hasJudge.value = !!(cfg as any).judge;
     if (!config.value.judge) {
-      config.value.judge = { type: "openai_compatible", model: "", base_url: "", api_key: "" };
+      config.value.judge = {
+        type: "openai_compatible", model: "", base_url: "", api_key: "",
+        scoring: { scale: 10, pass_threshold: 6, dimensions: [] },
+      };
+    }
+    if (!config.value.judge.scoring) {
+      config.value.judge.scoring = { scale: 10, pass_threshold: 6, dimensions: [] };
     }
     providerJson.value = JSON.stringify(config.value.opencode?.provider ?? {}, null, 2);
   } catch {}
@@ -154,11 +190,20 @@ onMounted(async () => {
   } catch {}
 });
 
+function addDimension() {
+  config.value.judge.scoring.dimensions.push({ name: "", weight: 1, description: "" });
+}
+
+function removeDimension(i: number) {
+  config.value.judge.scoring.dimensions.splice(i, 1);
+}
+
 async function saveConfig() {
   try {
     config.value.opencode.provider = JSON.parse(providerJson.value);
-    if (!hasJudge.value) delete config.value.judge;
-    await api.saveConfig(config.value);
+    const toSave = { ...config.value };
+    if (!hasJudge.value) delete toSave.judge;
+    await api.saveConfig(toSave);
     configSaved.value = true;
     setTimeout(() => (configSaved.value = false), 2000);
   } catch (err) {

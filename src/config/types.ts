@@ -1,7 +1,8 @@
 export type {
   EvalConfig,
   OpenCodeConfig,
-  SandboxConfig,
   ExecutionConfig,
   JudgeConfig,
+  ScoringConfig,
+  ScoringDimension,
 } from "./schema.ts";
