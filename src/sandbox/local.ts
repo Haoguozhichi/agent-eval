@@ -28,7 +28,12 @@ export class LocalSandboxProvider implements SandboxProvider {
     const workdir = await mkdtemp(join(tmpdir(), `agent-eval-${spec.caseId}-`));
     try {
       if (spec.workspaceSrc) {
-        await cp(spec.workspaceSrc, workdir, { recursive: true });
+        try {
+          await cp(spec.workspaceSrc, workdir, { recursive: true });
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+          // workspace dir doesn't exist, skip (it's optional)
+        }
       }
       if (spec.workspaceOverlay) {
         await cp(spec.workspaceOverlay, workdir, { recursive: true });
@@ -140,7 +145,14 @@ class LocalSandboxHandle implements SandboxHandle {
 
   async copyWorkdirTo(dest: string): Promise<void> {
     await mkdir(dest, { recursive: true });
-    await cp(this.workdir, dest, { recursive: true });
+    // Copy only project files, skip HOME artifacts (.cache, .config, .local, .npm, .opencode)
+    const skipDirs = new Set([".cache", ".config", ".local", ".npm", ".opencode"]);
+    const { readdir: rd } = await import("node:fs/promises");
+    const entries = await rd(this.workdir);
+    for (const entry of entries) {
+      if (skipDirs.has(entry)) continue;
+      await cp(join(this.workdir, entry), join(dest, entry), { recursive: true });
+    }
   }
 
   async destroy(): Promise<void> {
