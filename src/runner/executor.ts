@@ -364,5 +364,5 @@ function walkForEnv(value: unknown, out: Record<string, string>): void {
 
 function resolvePath(p: string, base: string): string {
   if (p.startsWith("/")) return p;
-  return `${base}/${p}`;
+  return join(base, p);
 }

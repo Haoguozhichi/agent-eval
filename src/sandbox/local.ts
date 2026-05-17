@@ -7,6 +7,7 @@ import type { EvalConfig } from "../config/types.ts";
 import type { PortPool } from "../utils/port.ts";
 import { createLogger } from "../utils/logger.ts";
 import { sleep } from "../utils/retry.ts";
+import { DEFAULT_SHELL, shellArgs, gracefulKillSignal, forceKillSignal, opencodeSpawnOpts } from "../utils/platform.ts";
 import type {
   ExecOptions,
   ExecResult,
@@ -48,14 +49,17 @@ export class LocalSandboxProvider implements SandboxProvider {
         ...process.env,
         ...spec.env,
         HOME: workdir,
+        USERPROFILE: workdir,
         XDG_CONFIG_HOME: join(workdir, ".config"),
         OPENCODE_PORT: String(port),
       };
 
+      const platformOpts = opencodeSpawnOpts();
       const proc = spawn("opencode", ["serve", "--port", String(port), "--hostname", "127.0.0.1"], {
         cwd: workdir,
         env,
         stdio: ["ignore", "pipe", "pipe"],
+        ...platformOpts,
       });
 
       proc.stdout?.on("data", (chunk: Buffer) => {
@@ -117,10 +121,16 @@ class LocalSandboxHandle implements SandboxHandle {
   }
 
   async exec(command: string, options: ExecOptions = {}): Promise<ExecResult> {
+    // On Windows local mode, "/bin/sh" from dataset defaults is invalid;
+    // fall back to the platform default shell.
+    const effectiveShell = options.shell === "/bin/sh" && DEFAULT_SHELL !== "/bin/sh"
+      ? DEFAULT_SHELL
+      : options.shell;
     return runShell(command, {
       ...options,
       cwd: options.cwd ?? this.workdir,
       env: mergeEnv(process.env, options.env),
+      shell: effectiveShell,
     });
   }
 
@@ -159,9 +169,9 @@ class LocalSandboxHandle implements SandboxHandle {
     if (this.destroyed) return;
     this.destroyed = true;
     if (!this.proc.killed) {
-      this.proc.kill("SIGTERM");
+      this.proc.kill(gracefulKillSignal());
       const exited = await waitForExit(this.proc, 3000);
-      if (!exited) this.proc.kill("SIGKILL");
+      if (!exited) this.proc.kill(forceKillSignal());
     }
     this.portPool.release(this.port);
     await rm(this.workdir, { recursive: true, force: true }).catch(() => {});
@@ -179,9 +189,9 @@ class LocalSandboxHandle implements SandboxHandle {
 
 export async function runShell(command: string, options: ExecOptions = {}): Promise<ExecResult> {
   const start = performance.now();
-  const shell = options.shell ?? "/bin/sh";
+  const shell = options.shell ?? DEFAULT_SHELL;
   return new Promise((resolveExec) => {
-    const proc = spawn(shell, ["-c", command], {
+    const proc = spawn(shell, shellArgs(command), {
       cwd: options.cwd,
       env: options.env ?? mergeEnv(process.env),
       stdio: ["pipe", "pipe", "pipe"],
@@ -194,13 +204,13 @@ export async function runShell(command: string, options: ExecOptions = {}): Prom
     const timer = options.timeoutMs
       ? setTimeout(() => {
           timedOut = true;
-          proc.kill("SIGKILL");
+          proc.kill(forceKillSignal());
         }, options.timeoutMs)
       : null;
 
     const onAbort = () => {
       timedOut = true;
-      proc.kill("SIGKILL");
+      proc.kill(forceKillSignal());
     };
     options.signal?.addEventListener("abort", onAbort, { once: true });
 
