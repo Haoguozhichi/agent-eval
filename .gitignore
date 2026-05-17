@@ -8,4 +8,4 @@ results/
 bun.lockb
 coverage/
 .idea/
-my-eval/
+examples/my-eval/

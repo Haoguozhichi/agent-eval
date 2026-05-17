@@ -15,9 +15,15 @@ import type { CaseResult, RunResult } from "./types.ts";
 
 const log = createLogger("orchestrator");
 
+export interface CaseProgressCallback {
+  onCaseStart?: (caseId: string, index: number) => void;
+  onCaseComplete?: (result: CaseResult, index: number) => void;
+}
+
 export async function runEvaluation(
   loaded: LoadedConfig,
   parsed: ParsedDataset,
+  progress?: CaseProgressCallback,
 ): Promise<RunResult> {
   const provider = createSandboxProvider(loaded.config);
   const limit = pLimit(loaded.config.execution.concurrency);
@@ -51,6 +57,7 @@ export async function runEvaluation(
   const tasks = parsed.dataset.cases.map((c, idx) =>
     limit(async () => {
       log.info(`case start ${idx + 1}/${parsed.dataset.cases.length}`, { id: c.id });
+      progress?.onCaseStart?.(c.id, idx);
       const result = await executeCase({ loaded, provider, outputDir: loaded.outputDir }, c, controller.signal);
       log.info(`case ${result.status}`, {
         id: c.id,
@@ -58,6 +65,7 @@ export async function runEvaluation(
         tokens: result.metrics.tokens.total,
         tool_calls: result.metrics.tool_calls.total,
       });
+      progress?.onCaseComplete?.(result, idx);
       if (loaded.config.execution.fail_fast && result.status !== "passed" && result.status !== "skipped") {
         controller.abort();
       }

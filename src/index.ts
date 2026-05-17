@@ -36,4 +36,4 @@ export type {
   CaseMetrics,
 } from "./runner/metrics.ts";
 
-export { runEvaluation } from "./runner/orchestrator.ts";
+export { runEvaluation, type CaseProgressCallback } from "./runner/orchestrator.ts";

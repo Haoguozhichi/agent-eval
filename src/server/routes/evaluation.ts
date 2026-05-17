@@ -4,7 +4,7 @@ import { resolve, join } from "node:path";
 import { writeFile, mkdir } from "node:fs/promises";
 import { loadConfig } from "../../config/loader.ts";
 import { loadDataset } from "../../dataset/parser.ts";
-import { runEvaluation } from "../../runner/orchestrator.ts";
+import { runEvaluation, type CaseProgressCallback } from "../../runner/orchestrator.ts";
 import { writeReports } from "../../reporter/index.ts";
 import { state, resetState } from "../state.ts";
 import { sseBus } from "../sse.ts";
@@ -79,6 +79,13 @@ async function runEval(runId: string, signal: AbortSignal): Promise<void> {
     const configPath = join(DATA_DIR, "eval.config.json");
     const loaded = await loadConfig(configPath);
 
+    // In local (non-Docker) mode, replace host.docker.internal with 127.0.0.1
+    if (loaded.config.sandbox.mode === "local") {
+      const configStr = JSON.stringify(loaded.config);
+      const fixed = configStr.replace(/host\.docker\.internal/g, "127.0.0.1");
+      Object.assign(loaded.config, JSON.parse(fixed));
+    }
+
     // Override output dir to include run ID
     const outputDir = join(RESULTS_DIR, runId);
     loaded.outputDir = outputDir;
@@ -88,29 +95,26 @@ async function runEval(runId: string, signal: AbortSignal): Promise<void> {
 
     sseBus.send("run.started", { run_id: runId, total: parsed.dataset.cases.length });
 
-    // Monkey-patch orchestrator to emit per-case events
-    const originalCases = parsed.dataset.cases;
-    let caseIndex = 0;
+    const result = await runEvaluation(loaded, parsed, {
+      onCaseStart: (caseId, index) => {
+        sseBus.send("case.started", { id: caseId, index });
+      },
+      onCaseComplete: (caseResult, index) => {
+        state.progress.completed += 1;
+        if (caseResult.status === "passed") state.progress.passed += 1;
+        else if (caseResult.status !== "skipped") state.progress.failed += 1;
 
-    // We wrap the evaluation and track progress via polling the result
-    const result = await runEvaluation(loaded, parsed);
-
-    // Update progress from result
-    for (const c of result.cases) {
-      state.progress.completed += 1;
-      if (c.status === "passed") state.progress.passed += 1;
-      else if (c.status !== "skipped") state.progress.failed += 1;
-
-      sseBus.send("case.completed", {
-        id: c.id,
-        name: c.name,
-        status: c.status,
-        duration: c.duration,
-        tokens: c.metrics.tokens.total,
-        tool_calls: c.metrics.tool_calls.total,
-        index: caseIndex++,
-      });
-    }
+        sseBus.send("case.completed", {
+          id: caseResult.id,
+          name: caseResult.name,
+          status: caseResult.status,
+          duration: caseResult.duration,
+          tokens: caseResult.metrics.tokens.total,
+          tool_calls: caseResult.metrics.tool_calls.total,
+          index,
+        });
+      },
+    });
 
     await writeReports(outputDir, result);
 

@@ -4,12 +4,14 @@ COPY package.json bun.lock ./
 COPY web/package.json web/
 RUN bun install && cd web && bun install
 COPY . .
-RUN cd web && npx vite build
+RUN cd web && bun run node_modules/.bin/vite build
 
 FROM oven/bun:1
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl git python3 build-essential \
+RUN printf 'Types: deb\nURIs: http://mirrors.aliyun.com/debian\nSuites: trixie trixie-updates\nComponents: main\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\n' > /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates curl git python3 build-essential \
     && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://opencode.ai/install | bash \
     && ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode || true

@@ -114,7 +114,8 @@ onMounted(async () => {
   runId.value = s.run_id;
   if (s.progress) progress.value = s.progress as any;
 
-  if (s.status === "running") {
+  // Always connect SSE if running or just started
+  if (s.status === "running" || s.status === "idle") {
     connectSSE();
   }
 });
