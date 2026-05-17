@@ -114,7 +114,12 @@ async function runEval(runId: string, signal: AbortSignal): Promise<void> {
       },
     });
 
-    await writeReports(outputDir, result);
+    // Always write reports (even if some cases errored/timed out)
+    try {
+      await writeReports(outputDir, result);
+    } catch (writeErr) {
+      console.error("failed to write reports:", (writeErr as Error).message);
+    }
 
     state.status = "completed";
     state.lastResult = result;

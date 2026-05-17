@@ -50,17 +50,19 @@
             <div v-for="(server, i) in mcpServers" :key="i" class="border rounded p-3 space-y-2">
               <div class="flex items-center gap-2">
                 <input v-model="server.name" class="input flex-1 text-xs" placeholder="服务器名称" />
-                <select v-model="server.type" class="input w-24 text-xs">
+                <select v-model="server.type" class="input w-28 text-xs">
                   <option value="url">远程 URL</option>
                   <option value="command">本地命令</option>
                 </select>
-                <button @click="mcpServers.splice(i, 1)" class="text-red-400 hover:text-red-600">✕</button>
+                <button @click="mcpServers.splice(i, 1)" class="text-red-400 hover:text-red-600 text-lg">&times;</button>
               </div>
-              <input v-if="server.type === 'url'" v-model="server.url" class="input text-xs" placeholder="https://mcp.example.com/mcp" />
-              <template v-else>
+              <div v-if="server.type === 'url'">
+                <input v-model="server.url" class="input text-xs" placeholder="https://mcp.example.com/mcp" />
+              </div>
+              <div v-else class="space-y-2">
                 <input v-model="server.command" class="input text-xs" placeholder="命令 (如 npx)" />
-                <input v-model="server.args" class="input text-xs" placeholder="参数 (逗号分隔)" />
-              </template>
+                <input v-model="server.args" class="input text-xs" placeholder="参数 (逗号分隔，如 -y, @modelcontextprotocol/server-filesystem, /tmp)" />
+              </div>
             </div>
             <button @click="addMcpServer" class="text-xs text-blue-600 hover:underline">+ 添加 MCP 服务器</button>
           </template>
@@ -220,7 +222,7 @@ onMounted(async () => {
       config.value.judge.scoring = { scale: 10, pass_threshold: 6, dimensions: [] };
     }
     providerJson.value = JSON.stringify(config.value.opencode?.provider ?? {}, null, 2);
-    selectedSkills.value = config.value.opencode?.skills ?? [];
+    selectedSkills.value = Array.isArray(config.value.opencode?.skills) ? [...config.value.opencode.skills] : [];
 
     // Parse MCP into form
     const mcp = config.value.opencode?.mcp ?? {};
